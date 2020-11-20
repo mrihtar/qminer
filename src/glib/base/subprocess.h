@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #ifndef SUBPROCESS_H_
@@ -30,7 +19,7 @@ class TSubProcess;
 class TSubProcessHandlerThread : public TThread {
 public:
 	TSubProcess *Proc;
-	PMem Output;
+	TMem Output;
 	TSubProcessHandlerThread();
 	void SetSubProcess(TSubProcess *P);
 	void Run();
@@ -45,11 +34,11 @@ protected:
 	TStr Cmd;
 	TSubProcessMode Mode;
 	TSubProcessHandlerThread Thr;
-	
+
   #ifdef GLib_WIN
 	///TStdIOPipe Pip;
     HANDLE StdoutWr, StdinWr, StdinRd, StdoutRd;
-  #else 
+  #else
     FILE* StdoutWr, *StdinRd;
 	int Pid;
 
@@ -67,7 +56,7 @@ protected:
                  int pid,         //returned from pipe_open()
                  int *result);
   #endif
-  
+
 public:
 	TSubProcess(const TStr& Cmd, TSubProcessMode Mod_);
 	static PSubProcess New(const TStr& Cmd, TSubProcessMode Mod_);
@@ -84,17 +73,17 @@ public:
 	/** Get a stream for writing into the stdin of the subprocess. */
 	PSOut OpenForWriting();
 
-	/** Wrap an input stream so that it flows through that subprocess and the 
-		response is readable at the returned input stream. 
-		
-		Not recommended for huge streams, as it first writes everything and then reads 
+	/** Wrap an input stream so that it flows through that subprocess and the
+		response is readable at the returned input stream.
+
+		Not recommended for huge streams, as it first writes everything and then reads
 		the response.*/
 	PSIn Pipe(const PSIn& In);
 	void Execute(const PSIn& Send, PSOut& Receive);
-	
+
 	void CloseForWriting();
 	void CloseForReading();
-	
+
 	friend class TSubProcessIn;
 	friend class TSubProcessOut;
 };
@@ -121,11 +110,11 @@ public:
   ~TSubProcessIn();
 
   bool Eof() { /*return CurFPos==FLen && CurFPos > 0 && BfC==BfL;*/ return IsEof; }
-  int Len() const { 
+  int Len() const {
 	  if (FLen == 0) {
 		return 0;
 	  } else {
-		return int(FLen-CurFPos+BfL-BfC); 
+		return int(FLen-CurFPos+BfL-BfC);
 	  }
   }
   char GetCh() { if (BfC==BfL){FillBf();} return Bf[BfC++]; }

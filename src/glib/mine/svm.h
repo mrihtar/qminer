@@ -1,276 +1,256 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #ifndef SVM_H
 #define	SVM_H
 
 #include "../base/base.h"
+#include "libsvm.h"
 
 namespace TSvm {
 
+class TSvmModel {
+public:
+    virtual  ~TSvmModel() {  }
+    virtual void Load(TSIn& SIn) = 0;
+    virtual void Save(TSOut& SOut) const = 0;
+
+    virtual void UpdateParams(const PJsonVal& ParamVal) = 0;
+    virtual PJsonVal GetParams() const = 0;
+
+    virtual void FitRegression(const TVec<TIntFltKdV>& VecV, const int& Dims, const int& Vecs,
+          const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify) = 0;
+    virtual void FitClassification(const TVec<TIntFltKdV>& VecV, const int& Dims, const int& Vecs,
+          const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify) = 0;
+    virtual void FitRegression(const TFltVV& VecV, const int& Dims, const int& Vecs,
+          const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify) = 0;
+    virtual void FitClassification(const TFltVV& VecV, const int& Dims, const int& Vecs,
+          const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify) = 0;
+
+    virtual double Predict(const TFltV& Vec) const = 0;
+    virtual double Predict(const TIntFltKdV& SpVec) const = 0;
+    virtual double Predict(const TFltVV& Mat, const int& ColN) const = 0;
+
+    virtual const TFltV& GetWgtV() const = 0;
+    virtual double GetBias() const = 0;
+};
+
+/// Parameters for training linear SVM model
+class TLinParam {
+  public:
+    TFlt Cost;
+    TFlt Unbalance;
+    TFlt Eps;
+    TInt SampleSize;
+    TInt MxIter;
+    TInt MxTime;
+    TFlt MnDiff;
+    TBool Verbose;
+
+  public:
+    TLinParam() : Cost(1.0), Unbalance(1.0), Eps(1e-3), SampleSize(1000),
+        MxIter(10000), MxTime(1000*1), MnDiff(1e-6), Verbose(false) {  }
+    TLinParam(const double& _Cost, const double& _Unbalance, const int& _SampleSize,
+        const int& _MxIter, const int& _MxTime, const double& _MnDiff, const bool& _Verbose) :
+        Cost(_Cost), Unbalance(_Unbalance), SampleSize(_SampleSize), MxIter(_MxIter),
+        MxTime(_MxTime), MnDiff(_MnDiff), Verbose(_Verbose) { }
+    ~TLinParam() { }
+
+    TLinParam(TSIn& SIn);
+    void Load(TSIn& SIn);
+    void Save(TSOut& SOut) const;
+};
+
 /// Linear model
-class TLinModel {
+class TLinModel : public TSvmModel {
 private:
     TFltV WgtV;
+    TFlt Bias;
+    TLinParam Param;
+
 public:
-    TLinModel(const TFltV& _WgtV): WgtV(_WgtV) {  }
+    TLinModel() { }
+    TLinModel(const TFltV& _WgtV): WgtV(_WgtV) { }
+    TLinModel(const TFltV& _WgtV, const double& _Bias): WgtV(_WgtV), Bias(_Bias) {  }
+    ~TLinModel() {  }
 
-    TLinModel(TSIn& SIn): WgtV(SIn) { }
-    void Save(TSOut& SOut) const { WgtV.Save(SOut); }
-    
+    TLinModel(TSIn& SIn);
+    void Load(TSIn& SIn);
+    void Save(TSOut& SOut) const;
+
+    void UpdateParams(const PJsonVal& ParamVal);
+    PJsonVal GetParams() const;
+
     /// Get weight vector
-    void GetWgtV(TFltV& _WgtV) const {
-        _WgtV = WgtV;
-    }
-    
+    const TFltV& GetWgtV() const { return WgtV; }
+    /// Get bias
+    double GetBias() const { return Bias; }
+
     /// Classify full vector
-    double Predict(const TFltV& Vec) const { 
-        return TLinAlg::DotProduct(WgtV, Vec); 
-    }
-    
+    double Predict(const TFltV& Vec) const;
     /// Classify sparse vector
-    double Predict(const TIntFltKdV& SpVec) const { 
-        return TLinAlg::DotProduct(WgtV, SpVec);
-    }
+    double Predict(const TIntFltKdV& SpVec) const;
+    /// Classify matrix column vector
+    double Predict(const TFltVV& Mat, const int& ColN) const;
+
+    void FitClassification(const TFltVV& VecV, const int& Dims, const int& Vecs,
+        const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify);
+    void FitRegression(const TFltVV& VecV, const int& Dims, const int& Vecs,
+        const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify);
+    void FitClassification(const TVec<TIntFltKdV>& VecV, const int& Dims, const int& Vecs,
+        const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify);
+    void FitRegression(const TVec<TIntFltKdV>& VecV, const int& Dims, const int& Vecs,
+        const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify);
+
+    template <class TVecV>
+    void SolveClassification(const TVecV& VecV, const int& Dims, const int& Vecs,
+        const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify);
+    template <class TVecV>
+    void SolveRegression(const TVecV& VecV, const int& Dims, const int& Vecs,
+        const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify);
 };
 
-template <class TVecV>
-TLinModel SolveClassify(const TVecV& VecV, const int& Dims, const int& Vecs,
-        const TFltV& TargetV, const double& Cost, const double& UnbalanceWgt,
-        const int& MxMSecs, const int& MxIter, const double& MnDiff, 
-        const int& SampleSize, const PNotify& Notify = TStdNotify::New()) {
+/// constants for Type, LIBSVM specific
+enum { LIBSVM_CSVC, LIBSVM_NUSVC, LIBSVM_ONECLASS, LIBSVM_EPSILONSVR, LIBSVM_NUSVR, DEFAULT };
 
-    // asserts for input parameters
-    EAssertR(Dims > 0, "Dimensionality must be positive!");
-    EAssertR(Vecs > 0, "Number of vectors must be positive!");
-    EAssertR(Cost > 0.0, "Cost parameter must be positive!");
-    EAssertR(SampleSize > 0, "Sampling size must be positive!");
-    EAssertR(MxIter > 1, "Number of iterations to small!");
-    
-    // initialization 
-    TRnd Rnd(1); 
-    const double Lambda = 1.0 / (double(Vecs) * Cost);
-    // we start with random normal vector
-    TFltV WgtV(Dims); TLAMisc::FillRnd(WgtV, Rnd); TLinAlg::Normalize(WgtV);
-    // make it of appropriate length
-    TLinAlg::MultiplyScalar(1.0 / (2.0 * TMath::Sqrt(Lambda)), WgtV, WgtV);
-    // allocate space for updates
-    TFltV NewWgtV(Dims);
+/// constants for Kernel, LIBSVM specific
+enum { LIBSVM_LINEAR, LIBSVM_POLY, LIBSVM_RBF, LIBSVM_SIGMOID, LIBSVM_PRECOMPUTED };
 
-    // split vectors into positive and negative 
-    TIntV PosVecIdV, NegVecIdV;
-    for (int VecN = 0; VecN < Vecs; VecN++) {
-        if (TargetV[VecN] > 0.0) {
-            PosVecIdV.Add(VecN);
-        } else {
-            NegVecIdV.Add(VecN);
-        }
-    }
-    const int PosVecs = PosVecIdV.Len(), NegVecs = NegVecIdV.Len();
-    // prepare sampling ratio between positive and negative
-    //  - the ration is uniform over the records when UnbalanceWgt == 1.0
-    //  - if smaller then 1.0, then there is bias towards negative
-    //  - if larger then 1.0, then there is bias towards positives
-    double SamplingRatio = (double(PosVecs) * UnbalanceWgt) /
-        (double(PosVecs) * UnbalanceWgt + double(NegVecs));
-    Notify->OnStatusFmt("Sampling ration 1 positive vs %.2f negative", 
-        (UnbalanceWgt / SamplingRatio - UnbalanceWgt));
-    
-    TTmTimer Timer(MxMSecs); int Iters = 0; double Diff = 1.0;
-    Notify->OnStatusFmt("Limits: %d iterations, %.3f seconds, %.8f weight difference", MxIter, (double)MxMSecs /1000.0, MnDiff);
-    // initialize profiler    
-    TTmProfiler Profiler;
-    const int ProfilerPre = Profiler.AddTimer("Pre");
-    const int ProfilerBatch = Profiler.AddTimer("Batch");
-    const int ProfilerPost = Profiler.AddTimer("Post");
+class TLibSvmParam {
+  public:
+    TInt Type; ///< LIBSVM specific: C_SVC, NU_SVC, EPSILON_SVR, NU_SVR, ONE_CLASS
+    TInt Kernel; ///< LIBSVM specific: LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED
+    TFlt Cost; ///< parameter C of C-SVC, epsilon-SVR, and nu-SVR, SGD and PR_LOQO (default 1)
+    TFlt Unbalance; ///< parameter J of SGD and PR_LOQO, in LIBSVM this is used for weight calculation (default 1)
+    TFlt Eps; ///< LIBSVM specific: set tolerance of termination criterion (default 0.001)
+    TFlt Gamma; ///< LIBSVM specific: set gamma in kernel function (default 1.0)
+    TFlt P; ///< LIBSVM specific: set the epsilon in loss function of epsilon-SVR (default 0.1)
+    TInt Degree;  ///< LIBSVM specific: set degree in kernel function (default 1)
+    TFlt Nu; ///< LIBSVM specific: set the parameter nu of nu-SVC, one-class SVM, and nu-SVR (default 0.01)
+    TFlt Coef0; ///< LIBSVM specific: set coef0 in kernel function (default 1.0)
+    TFlt CacheSize; ///< LIBSVM specific: set cache memory size in MB (default 100)
+    TBool Verbose;
 
-    // function for writing progress reports
-    auto ProgressNotify = [&]() {
-        Notify->OnStatusFmt("  %d iterations, %.3f seconds, last weight difference %g", 
-            Iters, Timer.GetStopWatch().GetMSec() / 1000.0, Diff);
-    };
-       
-    for (int IterN = 0; IterN < MxIter; IterN++) {
-        if (IterN % 100 == 0) { ProgressNotify(); }
-        
-        Profiler.StartTimer(ProfilerPre);
-        // tells how much we can move
-        const double Nu = 1.0 / (Lambda * double(IterN + 2)); // ??
-        const double VecUpdate = Nu / double(SampleSize);
-        // initialize updated normal vector
-        TLinAlg::MultiplyScalar((1.0 - Nu * Lambda), WgtV, NewWgtV);
-        Profiler.StopTimer(ProfilerPre);
-        
-        // classify examples from the sample
-        Profiler.StartTimer(ProfilerBatch);
-        int DiffCount = 0;
-        for (int SampleN = 0; SampleN < SampleSize; SampleN++) {            
-            const int VecN = (Rnd.GetUniDev() > SamplingRatio) ?
-                NegVecIdV[Rnd.GetUniDevInt(NegVecs)] : // we select negative vector
-                PosVecIdV[Rnd.GetUniDevInt(PosVecs)];  // we select positive vector
-            const double VecCfyVal = TargetV[VecN];
-            const double CfyVal = VecCfyVal * TLinAlg::DotProduct(VecV, VecN, WgtV);
-            if (CfyVal < 1.0) { 
-                // with update from the stochastic sub-gradient
-                TLinAlg::AddVec(VecUpdate * VecCfyVal, VecV, VecN, NewWgtV, NewWgtV);
-                DiffCount++;
-            }
-        }
-        Profiler.StopTimer(ProfilerBatch);
+    TLibSvmParam(): Type(DEFAULT), Kernel(LIBSVM_LINEAR), Cost(1.0), Unbalance(1.0),
+        Eps(1e-3), Gamma(1.0), P(0.1), Degree(1), Nu(1e-2), Coef0(1.0), CacheSize(100), Verbose(false) { }
+    TLibSvmParam(const int& _Type, const int& _Kernel, const double& _Cost, const double& _Unbalance,
+        const double& _Eps, const double& _Gamma, const double& _P, const int& _Degree, const double& _Nu,
+        const double& _Coef0, const double& _CacheSize, bool _Verbose):
+        Type(_Type), Kernel(_Kernel), Cost(_Cost), Unbalance(_Unbalance), Eps(_Eps), Gamma(_Gamma), P(_P),
+        Degree(_Degree), Nu(_Nu), Coef0(_Coef0), CacheSize(_CacheSize), Verbose(_Verbose) { }
+    ~TLibSvmParam() { }
 
-        Profiler.StartTimer(ProfilerPost);
-        // project the current solution on to a ball
-        const double WgtNorm = 1.0 / (TLinAlg::Norm(NewWgtV) * TMath::Sqrt(Lambda));
-        if (WgtNorm < 1.0) { TLinAlg::MultiplyScalar(WgtNorm, NewWgtV, NewWgtV); }
-        // compute the difference with respect to the previous iteration
-        Diff = 2.0 * TLinAlg::EuclDist(WgtV, NewWgtV) / (TLinAlg::Norm(WgtV) + TLinAlg::Norm(NewWgtV));
-        // remember new solution, but only when we actually did some changes
-        WgtV = NewWgtV;
-        Profiler.StopTimer(ProfilerPost);
+    TLibSvmParam(TSIn& SIn);
+    void Load(TSIn& SIn);
+    void Save(TSOut& SOut) const;
 
-        // count
-        Iters++;
-        // check stopping criteria with respect to time
-        if (Timer.IsTimeUp()) {
-            Notify->OnStatusFmt("Finishing due to reached time limit of %.3f seconds", (double)MxMSecs / 1000.0);
-            break; 
-        }
-        // check stopping criteria with respect to result difference
-        //if (DiffCount > 0 && (1.0 - DiffCos) < MnDiff) { 
-        if (DiffCount > 0 && Diff < MnDiff) { 
-            Notify->OnStatusFmt("Finishing due to reached difference limit of %g", MnDiff);
-            break; 
-        }
-    }
-    if (Iters == MxIter) { 
-        Notify->OnStatusFmt("Finished due to iteration limit of %d", Iters);
-    }
-    
-    ProgressNotify();
-    Profiler.PrintReport(Notify);
-            
-    return TLinModel(WgtV);
-}
-        
-template <class TVecV>
-TLinModel SolveRegression(const TVecV& VecV, const int& Dims, const int& Vecs,
-        const TFltV& TargetV, const double& Cost, const double& Eps,
-        const int& MxMSecs, const int& MxIter, const double& MnDiff, 
-        const int& SampleSize, const PNotify& Notify = TStdNotify::New()) {
-
-    // asserts for input parameters
-    EAssertR(Dims > 0, "Dimensionality must be positive!");
-    EAssertR(Vecs > 0, "Number of vectors must be positive!");
-    EAssertR(Cost > 0.0, "Cost parameter must be positive!");
-    EAssertR(SampleSize > 0, "Sampling size must be positive!");
-    EAssertR(MxIter > 1, "Number of iterations to small!");
-    
-    // initialization 
-    TRnd Rnd(1); 
-    const double Lambda = 1.0 / (double(Vecs) * Cost);
-    // we start with random normal vector
-    TFltV WgtV(Dims); TLAMisc::FillRnd(WgtV, Rnd); TLinAlg::Normalize(WgtV);
-    // make it of appropriate length
-    TLinAlg::MultiplyScalar(1.0 / (2.0 * TMath::Sqrt(Lambda)), WgtV, WgtV);
-    // allocate space for updates
-    TFltV NewWgtV(Dims);
-
-    TTmTimer Timer(MxMSecs); int Iters = 0; double Diff = 1.0;
-    Notify->OnStatusFmt("Limits: %d iterations, %.3f seconds, %.8f weight difference", MxIter, (double)MxMSecs / 1000.0, MnDiff);
-    // initialize profiler    
-    TTmProfiler Profiler;
-    const int ProfilerPre = Profiler.AddTimer("Pre");
-    const int ProfilerBatch = Profiler.AddTimer("Batch");
-    const int ProfilerPost = Profiler.AddTimer("Post");
-
-    // function for writing progress reports
-    auto ProgressNotify = [&]() {
-        Notify->OnStatusFmt("  %d iterations, %.3f seconds, last weight difference %g", 
-            Iters, Timer.GetStopWatch().GetMSec() / 1000.0, Diff);
-    };
-       
-    for (int IterN = 0; IterN < MxIter; IterN++) {
-        if (IterN % 100 == 0) { ProgressNotify(); }
-        
-        Profiler.StartTimer(ProfilerPre);
-        // tells how much we can move
-        const double Nu = 1.0 / (Lambda * double(IterN + 2)); // ??
-        const double VecUpdate = Nu / double(SampleSize);
-        // initialize updated normal vector
-        TLinAlg::MultiplyScalar((1.0 - Nu * Lambda), WgtV, NewWgtV);
-        Profiler.StopTimer(ProfilerPre);
-        
-        // process examples from the sample
-        Profiler.StartTimer(ProfilerBatch);
-        for (int SampleN = 0; SampleN < SampleSize; SampleN++) {            
-            const int VecN = Rnd.GetUniDevInt(Vecs);
-            // target
-            const double Target = TargetV[VecN];
-            // prediction
-            const double Pred = TLinAlg::DotProduct(VecV, VecN, WgtV);
-            // difference
-            const double Loss = Target - Pred;
-            // do the update based on the difference
-            if (Loss < -Eps) { // y - z < -eps
-                // update from the stochastic sub-gradient: x
-                TLinAlg::AddVec(-VecUpdate, VecV, VecN, NewWgtV, NewWgtV);                
-            } else if (Loss > Eps) { // y - z > eps
-                // update from the stochastic sub-gradient: -x
-                TLinAlg::AddVec(VecUpdate, VecV, VecN, NewWgtV, NewWgtV);
-            } // else nothing to do, we are within the epsilon tube
-        }
-        Profiler.StopTimer(ProfilerBatch);
-
-        Profiler.StartTimer(ProfilerPost);
-        // project the current solution on to a ball
-        const double WgtNorm = 1.0 / (TLinAlg::Norm(NewWgtV) * TMath::Sqrt(Lambda));
-        if (WgtNorm < 1.0) { TLinAlg::MultiplyScalar(WgtNorm, NewWgtV, NewWgtV); }
-        // compute the difference with respect to the previous iteration
-        Diff = 2.0 * TLinAlg::EuclDist(WgtV, NewWgtV) / (TLinAlg::Norm(WgtV) + TLinAlg::Norm(NewWgtV));
-        // remember new solution
-        WgtV = NewWgtV;
-        Profiler.StopTimer(ProfilerPost);
-
-        // count
-        Iters++;
-        // check stopping criteria with respect to time
-        if (Timer.IsTimeUp()) {
-            Notify->OnStatusFmt("Finishing due to reached time limit of %.3f seconds", (double)MxMSecs / 1000.0);
-            break; 
-        }
-        // check stopping criteria with respect to result difference
-        if (Diff < MnDiff) { 
-            Notify->OnStatusFmt("Finishing due to reached difference limit of %g", MnDiff);
-            break; 
-        }
-    }
-    if (Iters == MxIter) { 
-        Notify->OnStatusFmt("Finished due to iteration limit of %d", Iters);
-    }
-    
-    ProgressNotify();
-	
-    Profiler.PrintReport(Notify);
-            
-    return TLinModel(WgtV);
-}
-
+    svm_parameter_t GetParamStruct() const;
 };
+
+class TLibSvmPredictParam {
+  public:
+    TInt Type;
+    TInt Kernel;
+    TFlt Gamma;
+    TInt Degree;
+    TFlt Coef0;
+
+    TLibSvmPredictParam() : Type(DEFAULT), Kernel(LINEAR), Gamma(1.0), Degree(0), Coef0(1.0) { }
+    TLibSvmPredictParam(TInt _Type, TInt _Kernel, TFlt _Gamma, TInt _Degree, TFlt _Coef0):
+        Type(_Type), Kernel(_Kernel), Gamma(_Gamma), Degree(_Degree), Coef0(_Coef0) { }
+    ~TLibSvmPredictParam() { }
+
+    TLibSvmPredictParam(TSIn& SIn);
+    void Load(TSIn& SIn);
+    void Save(TSOut& SOut) const;
+
+    /// returns svm_parameter_t for LIBSVM predict
+    svm_parameter_t GetPredictParamStruct() const;
+};
+
+/// General model
+class TLibSvmModel : public TSvmModel {
+private:
+    TFltV WgtV;
+    TFlt Bias;
+    /// parameters needed for training by libsvm
+    TLibSvmParam Param;
+    /// parameters needed for prediction (duplicated to be sure that the parameters
+    /// don't change between calling methods fit and predict)
+    TLibSvmPredictParam PredictParam;
+    /// support vectors
+    TFltVV SupportVectors;
+    /// coefficients for support vectors
+    TFltVV Coef;
+    /// bias terms
+    TFltV Rho;
+    /// number of support vectors for each class, needed for prediction
+    TIntV NSupportVectors;
+
+public:
+    TLibSvmModel(): Bias(0.0) {  }
+    TLibSvmModel(const TFltV& _WgtV): WgtV(_WgtV), Bias(0.0) {  }
+    TLibSvmModel(const TFltV& _WgtV, const double& _Bias): WgtV(_WgtV), Bias(_Bias) {  }
+    //TLibSvmModel(TInt _Type, TInt _Kernel, TInt _Degree, TFlt _Gamma, TFlt _Coef0): Bias(0.0) { Param = TLibSvmParam(); }
+    ~TLibSvmModel() {  }
+
+    TLibSvmModel(TSIn& SIn);
+    void Load(TSIn& SIn);
+    void Save(TSOut& SOut) const;
+
+    void UpdateParams(const PJsonVal& ParamVal);
+    PJsonVal GetParams() const;
+
+    /// Get weight vector
+    virtual const TFltV& GetWgtV() const { return WgtV; }
+
+    /// Get bias
+    double GetBias() const { return Bias; }
+
+    /// Get number of support vectors
+    int GetNSupportVectors() const { return SupportVectors.GetXDim(); }
+
+    /// Get support vectors
+    const TFltVV& GetSupportVectors() const { return SupportVectors; }
+
+    /// Get coeficients for support vectors
+    const TFltVV& GetCoefficients() const { return Coef; }
+
+    /// Get biases (rho)
+    const TFltV& GetBiases() const { return Rho; }
+
+    /// Get svm_model struct, inverse of ConvertResults(svm_model_t* model)
+    /// to delete model and free memory use DeleteModelStruct(svm_model_t* svm_model)
+    svm_model_t* GetModelStruct() const;
+
+    /// converts model from LIBSVM svm_model_t to TLibSvmModel class
+    /// inverse of GetModelStruct
+    void ConvertResults(svm_model_t* model, int Dim);
+
+    /// Deletes struct created with GenModelStruct
+    void DeleteModelStruct(svm_model_t* svm_model) const;
+
+    double Predict(const TFltV& Vec) const;
+    double Predict(const TIntFltKdV& SpVec) const;
+    double Predict(const TFltVV& Mat, const int& ColN) const;
+
+    /// LIBSVM for sparse input
+    void FitClassification(const TVec<TIntFltKdV>& VecV, const int& Dims, const int& Vecs,
+        const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify);
+    void FitRegression(const TVec<TIntFltKdV>& VecV, const int& Dims, const int& Vecs,
+        const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify);
+    /// Use LIBSVM for dense input
+    void FitClassification(const TFltVV& VecV, const int& Dims, const int& Vecs,
+        const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify);
+    void FitRegression(const TFltVV& VecV, const int& Dims, const int& Vecs,
+        const TFltV& TargetV, const PNotify& LogNotify, const PNotify& ErrorNotify);
+};
+
+}; //end namespace
 
 #endif

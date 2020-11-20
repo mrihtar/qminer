@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 /////////////////////////////////////////////////
@@ -38,6 +27,7 @@ const TStr THttp::FetchIdFldNm="FetchId";
 const TStr THttp::LocFldNm="Location";
 const TStr THttp::SetCookieFldNm="Set-Cookie";
 const TStr THttp::CookieFldNm="Cookie";
+const TStr THttp::ResponseTimeNm = "X-Response-Time";
 
 // content-type field-values
 const TStr THttp::TextFldVal="text/";
@@ -195,6 +185,8 @@ private:
   THttpExCd HttpExCd;
 public:
   THttpEx(const THttpExCd& _HttpExCd): HttpExCd(_HttpExCd){}
+
+  const THttpExCd& GetHttpExCd() const { return HttpExCd; }
 };
 
 /////////////////////////////////////////////////
@@ -487,7 +479,7 @@ public:
 /////////////////////////////////////////////////
 // Http-Request
 void THttpRq::ParseSearch(const TStr& SearchStr){
-  PSIn SIn=TStrIn::New(SearchStr);
+  PSIn SIn=TStrIn::New(SearchStr, false);
   THttpChRet ChRet(SIn, heBadSearchStr);
   try {
   // check empty search string
@@ -504,9 +496,10 @@ void THttpRq::ParseSearch(const TStr& SearchStr){
       switch (Ch){
         case '%':{
           char Ch1=ChRet.GetCh();
-		  if (!TCh::IsHex(Ch1)) { throw THttpEx(heBadSearchStr); }
-		  char Ch2=ChRet.GetCh();
-		  if (!TCh::IsHex(Ch2)) { throw THttpEx(heBadSearchStr); }
+          if (!TCh::IsHex(Ch1)) { throw THttpEx(heBadSearchStr); }
+          char Ch2=ChRet.GetCh();
+          if (!TCh::IsHex(Ch2)) { throw THttpEx(heBadSearchStr); }
+          if (Ch1 == 0 && Ch2 == 0) throw THttpEx(heBadSearchStr);
           KeyNm.AddCh(char(16*TCh::GetHex(Ch1)+TCh::GetHex(Ch2)));} break;
         case '+': KeyNm.AddCh(' '); break;
         case '&': throw THttpEx(heBadSearchStr);
@@ -521,9 +514,10 @@ void THttpRq::ParseSearch(const TStr& SearchStr){
       switch (Ch){
         case '%':{
           char Ch1=ChRet.GetCh();
-		  if (!TCh::IsHex(Ch1)) { throw THttpEx(heBadSearchStr); }
+          if (!TCh::IsHex(Ch1)) { throw THttpEx(heBadSearchStr); }
           char Ch2=ChRet.GetCh();
-		  if (!TCh::IsHex(Ch2)) { throw THttpEx(heBadSearchStr); }
+          if (!TCh::IsHex(Ch2)) { throw THttpEx(heBadSearchStr); }
+          if (Ch1 == 0 && Ch2 == 0) throw THttpEx(heBadSearchStr);
           ValStr.AddCh(char(16*TCh::GetHex(Ch1)+TCh::GetHex(Ch2)));} break;
         case '+': ValStr.AddCh(' '); break;
         case '&': throw THttpEx(heBadSearchStr);
@@ -589,18 +583,39 @@ void THttpRq::ParseHttpRq(const PSIn& SIn){
     if (!Url->IsOk()){
       throw THttpEx(heBadUrl);}
   }
+  if (Url.Empty()) {
+	  throw THttpEx(heBadUrl);
+  }
   // search string
   TStr SearchStr;
   if (Method==hrmGet){
-    SearchStr=Url->GetSearchStr();
-  } else
-  if ((Method==hrmPost)&&(
-   (!IsFldNm(THttp::ContTypeFldNm))||
-   (GetFldVal(THttp::ContTypeFldNm)==THttp::TextHtmlFldVal)||
-   (GetFldVal(THttp::ContTypeFldNm)==THttp::AppW3FormFldVal))){
-    SearchStr=TStr("?")+BodyMem.GetAsStr();
+	  ParseSearch(Url->GetSearchStr());
   }
-  ParseSearch(SearchStr);
+  else if ((Method == hrmPost) && (
+	  (!IsFldNm(THttp::ContTypeFldNm)) ||
+	  (GetFldVal(THttp::ContTypeFldNm).SearchStr(THttp::TextHtmlFldVal) >= 0) ||		// content-type can also contain "charset=utf-8"
+	  (GetFldVal(THttp::ContTypeFldNm).SearchStr(THttp::AppW3FormFldVal) >= 0))) {
+	  ParseSearch(TStr("?") + BodyMem.GetAsStr());
+  }
+  // if json object then parse the object values
+  else if (Method == hrmPost && GetFldVal(THttp::ContTypeFldNm).SearchStr(THttp::AppJSonFldVal) >= 0) {
+	  bool Ok; TStr MsgStr;
+	  PJsonVal Json = TJsonVal::GetValFromStr(BodyMem.GetAsStr(), Ok, MsgStr);
+	  if (Ok && Json->IsObj()) {
+		  for (int N = 0; N < Json->GetObjKeys(); N++) {
+			  const TStr Key = Json->GetObjKey(N);
+			  PJsonVal ValJson = Json->GetObjKey(Key);
+			  if (ValJson->IsStr()) UrlEnv->AddToKeyVal(Key, ValJson->GetStr());	  // don't put strings into additional ""
+			  else if (ValJson->IsArr()) {
+				  for (int K = 0; K < ValJson->GetArrVals(); K++) {
+					  if (ValJson->GetArrVal(K)->IsStr()) UrlEnv->AddToKeyVal(Key, ValJson->GetArrVal(K)->GetStr());	  // don't put strings into additional ""
+					  else	UrlEnv->AddToKeyVal(Key, ValJson->GetArrVal(K)->SaveStr());
+				  }
+			  }
+			  else	UrlEnv->AddToKeyVal(Key, ValJson->SaveStr());
+		  }
+	  }
+  }
   // at this point ok=true
   Ok=true;
 }
@@ -612,7 +627,12 @@ THttpRq::THttpRq(const PSIn& SIn):
   try {
     ParseHttpRq(SIn);
   }
-  catch (const THttpEx&){Ok=false;}
+  catch (const THttpEx&){
+      Ok=false;
+  }
+  catch (PExcept E) {
+      Ok = false;
+  }
 }
 
 THttpRq::THttpRq(
@@ -726,11 +746,11 @@ bool THttpRq::IsMobileUsrAgent() const {
 		return false;
 	} else if (UserAgentStr.IsStrIn("Mobile")) {		//this should also cover Android
 		return true;
-	} else if (UserAgentStr.IsStrIn("iPhone") || UserAgentStr.IsStrIn("iPod")) {				
-		return true;			
-	} else if (UserAgentStr.IsStrIn("BlackBerry")) {				
-		return true;			
-	} else if (UserAgentStr.IsStrIn("Symbian")) {				
+	} else if (UserAgentStr.IsStrIn("iPhone") || UserAgentStr.IsStrIn("iPod")) {
+		return true;
+	} else if (UserAgentStr.IsStrIn("BlackBerry")) {
+		return true;
+	} else if (UserAgentStr.IsStrIn("Symbian")) {
 		return true;
 	} else if (UserAgentStr.IsStrIn("Opera Mini")) {
 		return true;
@@ -798,7 +818,8 @@ void THttpResp::ParseHttpResp(const PSIn& SIn){
   if (Lx.Eof()){
     // no content
     MajorVerN=0; MinorVerN=9; StatusCd=204;
-    HdStr.Clr(); BodyMem.Clr();
+    HdStr = TStr();
+    BodyMem = TStr();
   } else {
     if (Lx.IsRespStatusLn()){
       // status-line
@@ -825,7 +846,7 @@ void THttpResp::ParseHttpResp(const PSIn& SIn){
     } else {
       // old fashion format
       MajorVerN=0; MinorVerN=9; StatusCd=200;
-      HdStr.Clr();
+      HdStr = TStr();
       Lx.ClrMemSf();
       Lx.GetRest();
       BodyMem=Lx.GetMemSf();
@@ -835,7 +856,8 @@ void THttpResp::ParseHttpResp(const PSIn& SIn){
 }
 
 THttpResp::THttpResp(const int& _StatusCd, const TStr& ContTypeVal,
- const bool& CacheCtrlP, const PSIn& BodySIn, const TStr LocStr):
+ const bool& CacheCtrlP, const PSIn& BodySIn, const TStr LocStr,
+ const int& ResponseTimeMs, const TStrKdV& CustomHdrV):
   Ok(true), MajorVerN(1), MinorVerN(0), StatusCd(_StatusCd), ReasonPhrase(),
   FldNmToValVH(20), HdStr(), BodyMem(){
   ReasonPhrase=THttp::GetReasonPhrase(StatusCd);
@@ -862,6 +884,12 @@ THttpResp::THttpResp(const int& _StatusCd, const TStr& ContTypeVal,
     // cache-control
     if (!CacheCtrlP){
       AddHdFld(THttp::CacheCtrlFldNm, "no-cache", HdChA);}
+  }
+  // add response time header
+  AddHdFld(THttp::ResponseTimeNm, TInt::GetStr(ResponseTimeMs), HdChA);
+  // add custom headers
+  for (int N = 0; N < CustomHdrV.Len(); N++) {
+      AddHdFld(CustomHdrV[N].Key, CustomHdrV[N].Dat, HdChA);
   }
   // header/body separator
   HdChA+="\r\n";
@@ -910,9 +938,9 @@ bool THttpResp::IsFldVal(const TStr& FldNm, const TStr& FldVal) const {
 void THttpResp::AddFldVal(const TStr& FldNm, const TStr& FldVal){
   TStr NrFldNm=THttpLx::GetNrStr(FldNm);
   FldNmToValVH.AddDat(NrFldNm).Add(FldVal);
-  if (HdStr.IsSuffix("\r\n\r\n")){
+  if (HdStr.EndsWith("\r\n\r\n")){
     TChA HdChA=HdStr;
-    HdChA.Pop(); HdChA.Pop(); 
+    HdChA.Pop(); HdChA.Pop();
     HdChA+=NrFldNm; HdChA+=": "; HdChA+=FldVal;
     HdChA+="\r\n\r\n";
     HdStr=HdChA;
@@ -929,10 +957,10 @@ void THttpResp::GetCookieKeyValDmPathQuV(TStrQuV& CookieKeyValDmPathQuV){
     TStrPrV KeyValPrV; TStr DmNm; TStr PathStr;
     for (int KeyValStrN=0; KeyValStrN<KeyValStrV.Len(); KeyValStrN++){
       TStr KeyValStr=KeyValStrV[KeyValStrN];
-      TStr KeyNm; TStr ValStr; 
+      TStr KeyNm; TStr ValStr;
       if (KeyValStr.IsChIn('=')){
         KeyValStrV[KeyValStrN].SplitOnCh(KeyNm, '=', ValStr);
-        KeyNm.ToTrunc(); ValStr.ToTrunc();
+		KeyNm = KeyNm.GetTrunc(); ValStr = ValStr.GetTrunc();
       } else {
         KeyNm=KeyValStr.GetTrunc();
       }
@@ -959,4 +987,3 @@ PSIn THttpResp::GetSIn() const {
   MOut.PutStr(HdStr); MOut.PutMem(BodyMem);
   return MOut.GetSIn();
 }
-

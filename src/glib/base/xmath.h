@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #include "bd.h"
@@ -27,9 +16,11 @@ public:
   static double Pi;
   static double LogOf2;
 
+  static double Abs(const double& x) { return TFlt::Abs(x); }
+  static int Abs(const int& x) { return TInt::Abs(x); }
   static double Inv(const double& x){IAssert(x!=0.0); return (1.0/x);}
   static double Sqr(const double& x){return x*x;}
-  static double Sqrt(const double& x){IAssert(!(x<0.0)); return sqrt(x);}
+  static double Sqrt(const double& x){EAssert(!(x<0.0)); return sqrt(x);}
   static double Log(const double& Val){return log(Val);}
   static double Log2(const double& Val){return log(Val)/LogOf2;}
   static double Round(const double& Val){
@@ -41,8 +32,13 @@ public:
   static int Choose(const int& N, const int& K){ // binomial coefficient
     return Fac(N)/(Fac(K)*Fac(N-K)); }
   static uint Pow2(const int& pow){return uint(1u<<pow);}
+  template <typename TType> static TType Pow2(const TType& pow){return TType(((TType)1)<<pow);}
+  static bool IsPow2(const int& Val){return (Val&(Val-1)) == 0;}
   static double Power(const double& Base, const double& Exponent){
     return exp(log(Base)*Exponent);}
+
+  static uint FloorLog2(const uint& Val);
+  static uint64 FloorLog2(const uint64& Val);
 
   template <typename T>
   static int Sign(const T& Val){return Val<0?-1:(Val>0?1:0);}
@@ -120,6 +116,9 @@ public:
   static void LinearFit( // Y = A + B*X
    const TVec<TFltPr>& XY, double& A, double& B,
    double& SigA, double& SigB, double& Chi2, double& R2);
+  /// Y = A + B*X, uses basic linear algebra operations
+  static void LinearFit( // Y = A + B*X
+	  const TFltV& X, const TFltV& Y, double& A, double& B);
   static void PowerFit( // Y = A * X^B
    const TVec<TFltPr>& XY, double& A, double& B,
    double& SigA, double& SigB, double& Chi2, double& R2);
@@ -134,6 +133,7 @@ public:
 public:
   static double Entropy(const TIntV& ValV);
   static double Entropy(const TFltV& ValV);
+  static double Entropy(const double& Prob);
   static void EntropyFracDim(const TIntV& ValV, TFltV& EntropyV);
   static void EntropyFracDim(const TFltV& ValV, TFltV& EntropyV);
 public:
@@ -141,6 +141,14 @@ public:
   //MLE of the power-law coefficient
   static double GetPowerCoef(const TFltV& XValV, double MinX=-1.0); // values (sampled from the distribution)
   static double GetPowerCoef(const TFltPrV& XValCntV, double MinX=-1.0); // (value, count) pairs
+
+  // returns the value of the cumulative distribution function of the value specified be Val
+  // with Df degrees of freedom
+  static double StudentCdf(const double& Val, const int& Df);
+  // returns the value of the cumulative distribution function for a value 'Val' sampled from
+  // the normal distribution N(Mean, Std) with Df degrees of freedom
+  static double StudentCdf(const double& Val, const double& Mean,
+	  const double& Std, const int& Df);
 };
 
 /////////////////////////////////////////////////
@@ -156,6 +164,7 @@ private:
   TFlt Mn, Mx;
   TFlt Mean, Vari, SDev, SErr;
   TFlt Median, Quart1, Quart3;
+  TFlt Mode;
   TFltV DecileV; // 0=min 1=1.decile, ..., 9=9.decile, 10=max
   TFltV PercentileV; // 0=min 1=1.percentile, ..., 9=9.percentile, 10=max
 public:
@@ -165,7 +174,7 @@ public:
     UsableP(false), UnusableVal(-1),
     Mn(), Mx(),
     Mean(), Vari(), SDev(), SErr(),
-    Median(), Quart1(), Quart3(),
+    Median(), Quart1(), Quart3(), Mode(),
     DecileV(), PercentileV(){}
   TMom(const TMom& Mom):
     DefP(Mom.DefP), ValWgtV(Mom.ValWgtV),
@@ -173,7 +182,7 @@ public:
     UsableP(Mom.UsableP), UnusableVal(Mom.UnusableVal),
     Mn(Mom.Mn), Mx(Mom.Mx),
     Mean(Mom.Mean), Vari(Mom.Vari), SDev(Mom.SDev), SErr(Mom.SErr),
-    Median(Mom.Median), Quart1(Mom.Quart1), Quart3(Mom.Quart3),
+    Median(Mom.Median), Quart1(Mom.Quart1), Quart3(Mom.Quart3), Mode(Mom.Mode),
     DecileV(Mom.DecileV), PercentileV(Mom.PercentileV){}
   static PMom New(){return PMom(new TMom());}
   static void NewV(TMomV& MomV, const int& Moms){
@@ -193,7 +202,7 @@ public:
     UsableP(SIn), UnusableVal(SIn),
     Mn(SIn), Mx(SIn),
     Mean(SIn), Vari(SIn), SDev(SIn), SErr(SIn),
-    Median(SIn), Quart1(SIn), Quart3(SIn),
+    Median(SIn), Quart1(SIn), Quart3(SIn), Mode(SIn),
     DecileV(SIn), PercentileV(SIn){}
   static PMom Load(TSIn& SIn){return new TMom(SIn);}
   void Save(TSOut& SOut) const {
@@ -203,7 +212,7 @@ public:
     UsableP.Save(SOut); UnusableVal.Save(SOut);
     Mn.Save(SOut); Mx.Save(SOut);
     Mean.Save(SOut); Vari.Save(SOut); SDev.Save(SOut); SErr.Save(SOut);
-    Median.Save(SOut); Quart1.Save(SOut); Quart3.Save(SOut);
+    Median.Save(SOut); Quart1.Save(SOut); Quart3.Save(SOut); Mode.Save(SOut);
     DecileV.Save(SOut); PercentileV.Save(SOut);}
 
   TMom& operator=(const TMom& Mom){
@@ -213,7 +222,7 @@ public:
     UsableP=Mom.UsableP; UnusableVal=Mom.UnusableVal;
     Mn=Mom.Mn; Mx=Mom.Mx;
     Mean=Mom.Mean; Vari=Mom.Vari; SDev=Mom.SDev; SErr=Mom.SErr;
-    Median=Mom.Median; Quart1=Mom.Quart1; Quart3=Mom.Quart3;
+    Median=Mom.Median; Quart1=Mom.Quart1; Quart3=Mom.Quart3; Mode=Mom.Mode;
     DecileV=Mom.DecileV; PercentileV=Mom.PercentileV;
     return *this;}
   bool operator==(const TMom& Mom) const {
@@ -262,6 +271,7 @@ public:
   double GetMedian() const {Assert(DefP&&UsableP); return Median;}
   double GetQuart1() const {Assert(DefP&&UsableP); return Quart1;}
   double GetQuart3() const {Assert(DefP&&UsableP); return Quart3;}
+  double GetMode() const {Assert(DefP&&UsableP); return Mode;}
   double GetDecile(const int& DecileN) const {
     Assert(DefP&&UsableP); return DecileV[DecileN];}
   double GetPercentile(const int& PercentileN) const {
@@ -472,28 +482,39 @@ public:
 // Histogram
 class THist {
 private:
-	TFlt MnVal;
-	TFlt MxVal;
+    TFlt MnVal;
+    TFlt MxVal;
     TIntV BucketV;
-	TFlt BucketSize;
+    TFlt BucketSize;
     TInt Vals;
 public:
-    THist() { }
-    THist(const double& _MnVal, const double& _MxVal, const int& Buckets):
-      MnVal(_MnVal), MxVal(_MxVal), BucketV(Buckets) {
-	    BucketSize = (MxVal == MnVal) ? 1.0 : (1.01 * double(MxVal - MnVal) / double(Buckets)); }
+    THist() {}
+    THist(const double& _MnVal, const double& _MxVal, const int& Buckets) :
+        MnVal(_MnVal), MxVal(_MxVal), BucketV(Buckets) {
+        BucketSize = (MxVal == MnVal) ? 1.0 : (1.01 * double(MxVal - MnVal) / double(Buckets));
+    }
 
     void Add(const double& Val, const bool& OnlyInP);
 
-	int GetVals() const { return Vals; }
-	int GetBuckets() const { return BucketV.Len(); }
-	double GetBucketMn(const int& BucketN) const { return MnVal + BucketN * BucketSize; }
-	double GetBucketMx(const int& BucketN) const { return MnVal + (BucketN + 1) * BucketSize; }
-	int GetBucketVal(const int& BucketN) const { return BucketV[BucketN]; }
-	double GetBucketValPerc(const int& BucketN) const { 
-		return (Vals > 0) ? (double(BucketV[BucketN]) / double(Vals)) : 0.0; }
+    int GetVals() const { return Vals; }
+    int GetBuckets() const { return BucketV.Len(); }
+    double GetBucketMn(const int& BucketN) const { return MnVal + BucketN * BucketSize; }
+    double GetBucketMx(const int& BucketN) const { return MnVal + (BucketN + 1) * BucketSize; }
+    int GetBucketVal(const int& BucketN) const { return BucketV[BucketN]; }
+    double GetBucketValPerc(const int& BucketN) const {
+        return (Vals > 0) ? (double(BucketV[BucketN]) / double(Vals)) : 0.0;
+    }
 
     void SaveStat(const TStr& ValNm, TSOut& FOut) const;
     void SaveTxt(const TStr& ValNm, const TStr& FNm) const {
-        TFOut FOut(FNm); SaveStat(ValNm, FOut); }
+        TFOut FOut(FNm); SaveStat(ValNm, FOut);
+    }
+};
+
+/////////////////////////////////////////////////
+// Statistics
+class TStatFun {
+public:
+    static void ChiSquare(const TFltV& OutValVX, const TFltV& OutValVY, const TInt& Df,
+        TFlt& Chi2, TFlt& P);
 };

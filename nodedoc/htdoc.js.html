@@ -1,0 +1,1312 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta name="generator" content="JSDoc 3">
+  <meta charset="utf-8">
+  <title>Source: htdoc.js</title>
+  <link rel="stylesheet" href="https://brick.a.ssl.fastly.net/Karla:400,400i,700,700i" type="text/css">
+  <link rel="stylesheet" href="https://brick.a.ssl.fastly.net/Noto+Serif:400,400i,700,700i" type="text/css">
+  <link rel="stylesheet" href="https://brick.a.ssl.fastly.net/Inconsolata:500" type="text/css">
+  <link href="css/baseline.css" rel="stylesheet">
+</head>
+
+<body onload="prettyPrint()">
+  <nav id="jsdoc-navbar" role="navigation" class="jsdoc-navbar">
+    <div id="jsdoc-navbar-container">
+      <div id="jsdoc-navbar-content">
+        <a href="index.html" class="jsdoc-navbar-package-name">Home</a>
+      </div>
+    </div>
+  </nav>
+  <div id="jsdoc-body-container">
+    <div id="jsdoc-content">
+      <div id="jsdoc-content-container">
+        <div id="jsdoc-banner" role="banner">
+        </div>
+        <div id="jsdoc-main" role="main">
+          <header class="page-header">
+            <h1>Source: htdoc.js</h1>
+          </header>
+          <article>
+            <pre class="prettyprint linenums"><code>/**
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
+ * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+/**
+* Hashtable module.
+* @module ht
+*/
+
+/**
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
+ *
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+/**
+	* String-string hashmap.
+	* @classdesc Used for storing key/data pairs, wraps an efficient C++ implementation.
+	* @class
+	* @example
+	* // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.StrStrMap();
+	* // Adding two key/dat pairs
+	* h.put(&#x27;foo&#x27;, &#x27;bar&#x27;);
+	* h.put(&#x27;dog&#x27;, &#x27;tisa&#x27;);
+	* // Getting data
+	* h.hasKey(&#x27;foo&#x27;); // returns true
+	* h.get(&#x27;dog&#x27;); // returns &#x27;tisa&#x27;
+	* h.key(1); // returns &#x27;dog&#x27;
+	* h.dat(1); // returns &#x27;tisa&#x27;
+	* h.length; // returns 2
+	* // Saving and loading:
+	* var fs &#x3D; require(&#x27;qminer&#x27;).fs;
+	* fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+	* h.save(fout).close(); // save and close write stream
+	* var h2 &#x3D; new ht.StrStrMap(); // new empty table
+	* var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+	* h2.load(fin); // load
+	*/
+ exports.StrStrMap &#x3D; function() {}
+/**
+	* Returns dat given key.
+	* @param {string} key - Hashmap key.
+	* @returns {string} Hashmap data.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrStrMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, &#x27;bar&#x27;);
+    * // get the newly added data
+    * var val &#x3D; h.get(&#x27;foo&#x27;); // returns &#x27;bar&#x27;
+	*/
+ exports.StrStrMap.prototype.get &#x3D; function(key) { return ; }
+/**
+	* Add/update key-value pair.
+	* @param {string} key - Hashmap key.
+	* @param {string} data - Hashmap data.
+	* @returns {module:ht.StrStrMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrStrMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, &#x27;bar&#x27;);
+	*/
+ exports.StrStrMap.prototype.put &#x3D; function(key, data) { return this; }
+/**
+	* Returns true if the map has a given key.
+	* @param {string} key - Hashmap key.
+	* @returns {boolean} True if the map contains key. Otherwise, false.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrStrMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, &#x27;bar&#x27;);
+    * // check if the hashtable has the key
+    * h.hasKey(&#x27;foo&#x27;); // returns true
+	*/
+ exports.StrStrMap.prototype.hasKey &#x3D; function(key) { return false; }
+/**
+    * Number of key/dat pairs. Type &#x60;number&#x60;.
+    * @example
+    * // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.StrStrMap();
+	* // Adding two key/dat pairs
+	* h.put(&#x27;foo&#x27;, &#x27;bar&#x27;);
+    * // get the number of key/dat pairs
+    * var length &#x3D; h.length; // returns 1
+	*/
+ exports.StrStrMap.prototype.length &#x3D; 0;
+/**
+	* Returns n-th key.
+	* @param {number} n - Hashmap key index number. Should be between 0 and length-1.
+	* @returns {string} The n-th key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrStrMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, &#x27;bar&#x27;);
+    * // get the first key
+    * var key &#x3D; h.key(0); // returns &#x27;foo&#x27;
+	*/
+ exports.StrStrMap.prototype.key &#x3D; function(n) { return ; }
+/**
+    * Returns the ID of the key provided as parameter.
+    * @param {string} key - Hashmap key.
+    * @returns {number} n - Hashmap index number of the key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrStrMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, &#x27;bar&#x27;);
+    * // get key id of &#x27;foo&#x27;
+    * var key &#x3D; h.keyId(&#x27;foo&#x27;); // returns 0
+    */
+ exports.StrStrMap.prototype.keyId &#x3D; function(n) { return ; }
+/**
+	* Returns n-th dat.
+	* @param {number} n - Hashmap dat index number. Should be between 0 and length-1.
+	* @returns {string} The n-th data value.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrStrMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, &#x27;bar&#x27;);
+    * // get the first dat
+    * var key &#x3D; h.key(0); // returns &#x27;bar&#x27;
+	*/
+ exports.StrStrMap.prototype.dat &#x3D; function(n) { return ; }
+/**
+	* Loads the hashtable from input stream.
+	* @param {module:fs.FIn} fin - Input stream.
+	* @returns {module:ht.StrStrMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrStrMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+    * var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+    * var h2 &#x3D; new ht.StrStrMap();
+    * h2.load(fin); // load
+	*/
+ exports.StrStrMap.prototype.load &#x3D; function(fin) { return this; }
+/**
+	* Saves the hashtable to output stream.
+	* @param {module:fs.FOut} fout - Output stream.
+	* @returns {module:fs.FOut} fout.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrStrMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+	*/
+ exports.StrStrMap.prototype.save &#x3D; function(fout) { return Object.create(require(&#x27;qminer&#x27;).fs.FOut.prototype); }
+/**
+	* Sorts by keys.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.StrStrMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrStrMap();
+    * h.put(&#x27;foo&#x27;, &#x27;bar&#x27;);
+    * h.put(&#x27;dog&#x27;, &#x27;tisa&#x27;);
+    * // sort the hashtable by keys
+    * h.sortKey();
+	*/
+ exports.StrStrMap.prototype.sortKey &#x3D; function(asc) { return this; }
+/**
+	* Sorts by dat.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.StrStrMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrStrMap();
+    * h.put(&#x27;foo&#x27;, &#x27;bar&#x27;);
+    * h.put(&#x27;dog&#x27;, &#x27;tisa&#x27;);
+    * // sort the hashtable by dat
+    * h.sortDat();
+	*/
+ exports.StrStrMap.prototype.sortDat &#x3D; function(asc) { return this; }
+
+/**
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
+ *
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+/**
+	* String-Integer hashmap.
+	* @classdesc Used for storing key/data pairs, wraps an efficient C++ implementation.
+	* @class
+	* @example
+	* // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.StrIntMap();
+	* // Adding two key/dat pairs
+	* h.put(&#x27;foo&#x27;, 10);
+	* h.put(&#x27;bar&#x27;, 20);
+	* // Getting data
+	* h.hasKey(&#x27;foo&#x27;); // returns true
+	* h.get(&#x27;bar&#x27;); // returns 20
+	* h.key(1); // returns &#x27;bar&#x27;
+	* h.dat(1); // returns 20
+	* h.length; // returns 2
+	* // Saving and loading:
+	* var fs &#x3D; require(&#x27;qminer&#x27;).fs;
+	* fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+	* h.save(fout).close(); // save and close write stream
+	* var h2 &#x3D; new ht.StrIntMap(); // new empty table
+	* var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+	* h2.load(fin); // load
+	*/
+ exports.StrIntMap &#x3D; function() {}
+/**
+	* Returns dat given key.
+	* @param {string} key - Hashmap key.
+	* @returns {number} Hashmap data.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrIntMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10);
+    * // get the newly added data
+    * var val &#x3D; h.get(&#x27;foo&#x27;); // returns 10
+	*/
+ exports.StrIntMap.prototype.get &#x3D; function(key) { return 0; }
+/**
+	* Add/update key-value pair.
+	* @param {string} key - Hashmap key.
+	* @param {number} data - Hashmap data.
+	* @returns {module:ht.StrIntMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrIntMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10);
+	*/
+ exports.StrIntMap.prototype.put &#x3D; function(key, data) { return this; }
+/**
+	* Returns true if the map has a given key.
+	* @param {string} key - Hashmap key.
+	* @returns {boolean} True if the map contains key. Otherwise, false.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrIntMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10);
+    * // check if the hashtable has the key
+    * h.hasKey(&#x27;foo&#x27;); // returns true
+	*/
+ exports.StrIntMap.prototype.hasKey &#x3D; function(key) { return false; }
+/**
+    * Number of key/dat pairs. Type &#x60;number&#x60;.
+    * @example
+    * // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.StrIntMap();
+	* // Adding two key/dat pairs
+	* h.put(&#x27;foo&#x27;, 10);
+    * // get the number of key/dat pairs
+    * var length &#x3D; h.length; // returns 1
+	*/
+ exports.StrIntMap.prototype.length &#x3D; 0;
+/**
+	* Returns n-th key.
+	* @param {number} n - Hashmap key index number. Should be between 0 and length-1.
+	* @returns {string} The n-th key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrIntMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10);
+    * // get the first key
+    * var key &#x3D; h.key(0); // returns &#x27;foo&#x27;
+	*/
+ exports.StrIntMap.prototype.key &#x3D; function(n) { return ; }
+/**
+    * Returns the ID of the key provided as parameter.
+    * @param {string} key - Hashmap key.
+    * @returns {number} n - Hashmap index number of the key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrIntMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10);
+    * // get key id of &#x27;foo&#x27;
+    * var key &#x3D; h.keyId(&#x27;foo&#x27;); // returns 0
+    */
+ exports.StrIntMap.prototype.keyId &#x3D; function(n) { return ; }
+/**
+	* Returns n-th dat.
+	* @param {number} n - Hashmap dat index number. Should be between 0 and length-1.
+	* @returns {number} The n-th data value.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrIntMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10);
+    * // get the first dat
+    * var key &#x3D; h.key(0); // returns 10
+	*/
+ exports.StrIntMap.prototype.dat &#x3D; function(n) { return 0; }
+/**
+	* Loads the hashtable from input stream.
+	* @param {module:fs.FIn} fin - Input stream.
+	* @returns {module:ht.StrIntMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrIntMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+    * var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+    * var h2 &#x3D; new ht.StrIntMap();
+    * h2.load(fin); // load
+	*/
+ exports.StrIntMap.prototype.load &#x3D; function(fin) { return this; }
+/**
+	* Saves the hashtable to output stream.
+	* @param {module:fs.FOut} fout - Output stream.
+	* @returns {module:fs.FOut} fout.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrIntMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+	*/
+ exports.StrIntMap.prototype.save &#x3D; function(fout) { return Object.create(require(&#x27;qminer&#x27;).fs.FOut.prototype); }
+/**
+	* Sorts by keys.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.StrIntMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrIntMap();
+    * h.put(&#x27;foo&#x27;, 10);
+    * h.put(&#x27;bar&#x27;, 20);
+    * // sort the hashtable by keys
+    * h.sortKey();
+	*/
+ exports.StrIntMap.prototype.sortKey &#x3D; function(asc) { return this; }
+/**
+	* Sorts by dat.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.StrIntMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrIntMap();
+    * h.put(&#x27;foo&#x27;, 10);
+    * h.put(&#x27;bar&#x27;, 20);
+    * // sort the hashtable by dat
+    * h.sortDat();
+	*/
+ exports.StrIntMap.prototype.sortDat &#x3D; function(asc) { return this; }
+
+/**
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
+ *
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+/**
+	* String-Float hashmap.
+	* @classdesc Used for storing key/data pairs, wraps an efficient C++ implementation.
+	* @class
+	* @example
+	* // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.StrFltMap();
+	* // Adding two key/dat pairs
+	* h.put(&#x27;foo&#x27;, 10.5);
+	* h.put(&#x27;bar&#x27;, 20.2);
+	* // Getting data
+	* h.hasKey(&#x27;foo&#x27;); // returns true
+	* h.get(&#x27;bar&#x27;); // returns 20.2
+	* h.key(1); // returns &#x27;bar&#x27;
+	* h.dat(1); // returns 20.2
+	* h.length; // returns 2
+	* // Saving and loading:
+	* var fs &#x3D; require(&#x27;qminer&#x27;).fs;
+	* fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+	* h.save(fout).close(); // save and close write stream
+	* var h2 &#x3D; new ht.StrFltMap(); // new empty table
+	* var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+	* h2.load(fin); // load
+	*/
+ exports.StrFltMap &#x3D; function() {}
+/**
+	* Returns dat given key.
+	* @param {string} key - Hashmap key.
+	* @returns {number} Hashmap data.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrFltMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10.5);
+    * // get the newly added data
+    * var val &#x3D; h.get(&#x27;foo&#x27;); // returns 10.5
+	*/
+ exports.StrFltMap.prototype.get &#x3D; function(key) { return 0; }
+/**
+	* Add/update key-value pair.
+	* @param {string} key - Hashmap key.
+	* @param {number} data - Hashmap data.
+	* @returns {module:ht.StrFltMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrFltMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10.5);
+	*/
+ exports.StrFltMap.prototype.put &#x3D; function(key, data) { return this; }
+/**
+	* Returns true if the map has a given key.
+	* @param {string} key - Hashmap key.
+	* @returns {boolean} True if the map contains key. Otherwise, false.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrFltMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10.5);
+    * // check if the hashtable has the key
+    * h.hasKey(&#x27;foo&#x27;); // returns true
+	*/
+ exports.StrFltMap.prototype.hasKey &#x3D; function(key) { return false; }
+/**
+    * Number of key/dat pairs. Type &#x60;number&#x60;.
+    * @example
+    * // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.StrFltMap();
+	* // Adding two key/dat pairs
+	* h.put(&#x27;foo&#x27;, 10.5);
+    * // get the number of key/dat pairs
+    * var length &#x3D; h.length; // returns 1
+	*/
+ exports.StrFltMap.prototype.length &#x3D; 0;
+/**
+	* Returns n-th key.
+	* @param {number} n - Hashmap key index number. Should be between 0 and length-1.
+	* @returns {string} The n-th key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrFltMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10.5);
+    * // get the first key
+    * var key &#x3D; h.key(0); // returns &#x27;foo&#x27;
+	*/
+ exports.StrFltMap.prototype.key &#x3D; function(n) { return ; }
+/**
+    * Returns the ID of the key provided as parameter.
+    * @param {string} key - Hashmap key.
+    * @returns {number} n - Hashmap index number of the key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrFltMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10.5);
+    * // get key id of &#x27;foo&#x27;
+    * var key &#x3D; h.keyId(&#x27;foo&#x27;); // returns 0
+    */
+ exports.StrFltMap.prototype.keyId &#x3D; function(n) { return ; }
+/**
+	* Returns n-th dat.
+	* @param {number} n - Hashmap dat index number. Should be between 0 and length-1.
+	* @returns {number} The n-th data value.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrFltMap();
+    * // add a key/dat pair
+    * h.put(&#x27;foo&#x27;, 10.5);
+    * // get the first dat
+    * var key &#x3D; h.key(0); // returns 10.5
+	*/
+ exports.StrFltMap.prototype.dat &#x3D; function(n) { return 0; }
+/**
+	* Loads the hashtable from input stream.
+	* @param {module:fs.FIn} fin - Input stream.
+	* @returns {module:ht.StrFltMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrFltMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+    * var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+    * var h2 &#x3D; new ht.StrFltMap();
+    * h2.load(fin); // load
+	*/
+ exports.StrFltMap.prototype.load &#x3D; function(fin) { return this; }
+/**
+	* Saves the hashtable to output stream.
+	* @param {module:fs.FOut} fout - Output stream.
+	* @returns {module:fs.FOut} fout.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrFltMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+	*/
+ exports.StrFltMap.prototype.save &#x3D; function(fout) { return Object.create(require(&#x27;qminer&#x27;).fs.FOut.prototype); }
+/**
+	* Sorts by keys.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.StrFltMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrFltMap();
+    * h.put(&#x27;foo&#x27;, 10.5);
+    * h.put(&#x27;bar&#x27;, 20.2);
+    * // sort the hashtable by keys
+    * h.sortKey();
+	*/
+ exports.StrFltMap.prototype.sortKey &#x3D; function(asc) { return this; }
+/**
+	* Sorts by dat.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.StrFltMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.StrFltMap();
+    * h.put(&#x27;foo&#x27;, 10.5);
+    * h.put(&#x27;bar&#x27;, 20.2);
+    * // sort the hashtable by dat
+    * h.sortDat();
+	*/
+ exports.StrFltMap.prototype.sortDat &#x3D; function(asc) { return this; }
+
+/**
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
+ *
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+/**
+	* Int-string hashmap.
+	* @classdesc Used for storing key/data pairs, wraps an efficient C++ implementation.
+	* @class
+	* @example
+	* // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.IntStrMap();
+	* // Adding two key/dat pairs
+	* h.put(10, &#x27;foo&#x27;);
+	* h.put(20, &#x27;bar&#x27;);
+	* // Getting data
+	* h.hasKey(10); // returns true
+	* h.get(20); // returns &#x27;bar&#x27;
+	* h.key(1); // returns 20
+	* h.dat(1); // returns &#x27;bar&#x27;
+	* h.length; // returns 2
+	* // Saving and loading:
+	* var fs &#x3D; require(&#x27;qminer&#x27;).fs;
+	* fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+	* h.save(fout).close(); // save and close write stream
+	* var h2 &#x3D; new ht.IntStrMap(); // new empty table
+	* var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+	* h2.load(fin); // load
+	*/
+ exports.IntStrMap &#x3D; function() {}
+/**
+	* Returns dat given key.
+	* @param {number} key - Hashmap key.
+	* @returns {string} Hashmap data.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntStrMap();
+    * // add a key/dat pair
+    * h.put(10, &#x27;foo&#x27;);
+    * // get the newly added data
+    * var val &#x3D; h.get(10); // returns &#x27;foo&#x27;
+	*/
+ exports.IntStrMap.prototype.get &#x3D; function(key) { return ; }
+/**
+	* Add/update key-value pair.
+	* @param {number} key - Hashmap key.
+	* @param {string} data - Hashmap data.
+	* @returns {module:ht.IntStrMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntStrMap();
+    * // add a key/dat pair
+    * h.put(10, &#x27;foo&#x27;);
+	*/
+ exports.IntStrMap.prototype.put &#x3D; function(key, data) { return this; }
+/**
+	* Returns true if the map has a given key.
+	* @param {number} key - Hashmap key.
+	* @returns {boolean} True if the map contains key. Otherwise, false.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntStrMap();
+    * // add a key/dat pair
+    * h.put(10, &#x27;foo&#x27;);
+    * // check if the hashtable has the key
+    * h.hasKey(10); // returns true
+	*/
+ exports.IntStrMap.prototype.hasKey &#x3D; function(key) { return false; }
+/**
+    * Number of key/dat pairs. Type &#x60;number&#x60;.
+    * @example
+    * // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.IntStrMap();
+	* // Adding two key/dat pairs
+	* h.put(10, &#x27;foo&#x27;);
+    * // get the number of key/dat pairs
+    * var length &#x3D; h.length; // returns 1
+	*/
+ exports.IntStrMap.prototype.length &#x3D; 0;
+/**
+	* Returns n-th key.
+	* @param {number} n - Hashmap key index number. Should be between 0 and length-1.
+	* @returns {number} The n-th key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntStrMap();
+    * // add a key/dat pair
+    * h.put(10, &#x27;foo&#x27;);
+    * // get the first key
+    * var key &#x3D; h.key(0); // returns 10
+	*/
+ exports.IntStrMap.prototype.key &#x3D; function(n) { return 0; }
+/**
+    * Returns the ID of the key provided as parameter.
+    * @param {number} key - Hashmap key.
+    * @returns {number} n - Hashmap index number of the key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntStrMap();
+    * // add a key/dat pair
+    * h.put(10, &#x27;foo&#x27;);
+    * // get key id of 10
+    * var key &#x3D; h.keyId(10); // returns 0
+    */
+ exports.IntStrMap.prototype.keyId &#x3D; function(n) { return 0; }
+/**
+	* Returns n-th dat.
+	* @param {number} n - Hashmap dat index number. Should be between 0 and length-1.
+	* @returns {string} The n-th data value.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntStrMap();
+    * // add a key/dat pair
+    * h.put(10, &#x27;foo&#x27;);
+    * // get the first dat
+    * var key &#x3D; h.key(0); // returns &#x27;foo&#x27;
+	*/
+ exports.IntStrMap.prototype.dat &#x3D; function(n) { return ; }
+/**
+	* Loads the hashtable from input stream.
+	* @param {module:fs.FIn} fin - Input stream.
+	* @returns {module:ht.IntStrMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntStrMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+    * var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+    * var h2 &#x3D; new ht.IntStrMap();
+    * h2.load(fin); // load
+	*/
+ exports.IntStrMap.prototype.load &#x3D; function(fin) { return this; }
+/**
+	* Saves the hashtable to output stream.
+	* @param {module:fs.FOut} fout - Output stream.
+	* @returns {module:fs.FOut} fout.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntStrMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+	*/
+ exports.IntStrMap.prototype.save &#x3D; function(fout) { return Object.create(require(&#x27;qminer&#x27;).fs.FOut.prototype); }
+/**
+	* Sorts by keys.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.IntStrMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntStrMap();
+    * h.put(10, &#x27;foo&#x27;);
+    * h.put(20, &#x27;bar&#x27;);
+    * // sort the hashtable by keys
+    * h.sortKey();
+	*/
+ exports.IntStrMap.prototype.sortKey &#x3D; function(asc) { return this; }
+/**
+	* Sorts by dat.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.IntStrMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntStrMap();
+    * h.put(10, &#x27;foo&#x27;);
+    * h.put(20, &#x27;bar&#x27;);
+    * // sort the hashtable by dat
+    * h.sortDat();
+	*/
+ exports.IntStrMap.prototype.sortDat &#x3D; function(asc) { return this; }
+
+/**
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
+ *
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+/**
+	* Integer-Integer hashmap.
+	* @classdesc Used for storing key/data pairs, wraps an efficient C++ implementation.
+	* @class
+	* @example
+	* // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.IntIntMap();
+	* // Adding two key/dat pairs
+	* h.put(5, 10);
+	* h.put(15, 20);
+	* // Getting data
+	* h.hasKey(5); // returns true
+	* h.get(15); // returns 20
+	* h.key(1); // returns 15
+	* h.dat(1); // returns 20
+	* h.length; // returns 2
+	* // Saving and loading:
+	* var fs &#x3D; require(&#x27;qminer&#x27;).fs;
+	* fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+	* h.save(fout).close(); // save and close write stream
+	* var h2 &#x3D; new ht.IntIntMap(); // new empty table
+	* var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+	* h2.load(fin); // load
+	*/
+ exports.IntIntMap &#x3D; function() {}
+/**
+	* Returns dat given key.
+	* @param {number} key - Hashmap key.
+	* @returns {number} Hashmap data.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntIntMap();
+    * // add a key/dat pair
+    * h.put(5, 10);
+    * // get the newly added data
+    * var val &#x3D; h.get(5); // returns 10
+	*/
+ exports.IntIntMap.prototype.get &#x3D; function(key) { return 0; }
+/**
+	* Add/update key-value pair.
+	* @param {number} key - Hashmap key.
+	* @param {number} data - Hashmap data.
+	* @returns {module:ht.IntIntMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntIntMap();
+    * // add a key/dat pair
+    * h.put(5, 10);
+	*/
+ exports.IntIntMap.prototype.put &#x3D; function(key, data) { return this; }
+/**
+	* Returns true if the map has a given key.
+	* @param {number} key - Hashmap key.
+	* @returns {boolean} True if the map contains key. Otherwise, false.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntIntMap();
+    * // add a key/dat pair
+    * h.put(5, 10);
+    * // check if the hashtable has the key
+    * h.hasKey(5); // returns true
+	*/
+ exports.IntIntMap.prototype.hasKey &#x3D; function(key) { return false; }
+/**
+    * Number of key/dat pairs. Type &#x60;number&#x60;.
+    * @example
+    * // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.IntIntMap();
+	* // Adding two key/dat pairs
+	* h.put(5, 10);
+    * // get the number of key/dat pairs
+    * var length &#x3D; h.length; // returns 1
+	*/
+ exports.IntIntMap.prototype.length &#x3D; 0;
+/**
+	* Returns n-th key.
+	* @param {number} n - Hashmap key index number. Should be between 0 and length-1.
+	* @returns {number} The n-th key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntIntMap();
+    * // add a key/dat pair
+    * h.put(5, 10);
+    * // get the first key
+    * var key &#x3D; h.key(0); // returns 5
+	*/
+ exports.IntIntMap.prototype.key &#x3D; function(n) { return 0; }
+/**
+    * Returns the ID of the key provided as parameter.
+    * @param {number} key - Hashmap key.
+    * @returns {number} n - Hashmap index number of the key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntIntMap();
+    * // add a key/dat pair
+    * h.put(5, 10);
+    * // get key id of 5
+    * var key &#x3D; h.keyId(5); // returns 0
+    */
+ exports.IntIntMap.prototype.keyId &#x3D; function(n) { return 0; }
+/**
+	* Returns n-th dat.
+	* @param {number} n - Hashmap dat index number. Should be between 0 and length-1.
+	* @returns {number} The n-th data value.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntIntMap();
+    * // add a key/dat pair
+    * h.put(5, 10);
+    * // get the first dat
+    * var key &#x3D; h.key(0); // returns 10
+	*/
+ exports.IntIntMap.prototype.dat &#x3D; function(n) { return 0; }
+/**
+	* Loads the hashtable from input stream.
+	* @param {module:fs.FIn} fin - Input stream.
+	* @returns {module:ht.IntIntMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntIntMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+    * var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+    * var h2 &#x3D; new ht.IntIntMap();
+    * h2.load(fin); // load
+	*/
+ exports.IntIntMap.prototype.load &#x3D; function(fin) { return this; }
+/**
+	* Saves the hashtable to output stream.
+	* @param {module:fs.FOut} fout - Output stream.
+	* @returns {module:fs.FOut} fout.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntIntMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+	*/
+ exports.IntIntMap.prototype.save &#x3D; function(fout) { return Object.create(require(&#x27;qminer&#x27;).fs.FOut.prototype); }
+/**
+	* Sorts by keys.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.IntIntMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntIntMap();
+    * h.put(5, 10);
+    * h.put(15, 20);
+    * // sort the hashtable by keys
+    * h.sortKey();
+	*/
+ exports.IntIntMap.prototype.sortKey &#x3D; function(asc) { return this; }
+/**
+	* Sorts by dat.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.IntIntMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntIntMap();
+    * h.put(5, 10);
+    * h.put(15, 20);
+    * // sort the hashtable by dat
+    * h.sortDat();
+	*/
+ exports.IntIntMap.prototype.sortDat &#x3D; function(asc) { return this; }
+
+/**
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
+ *
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+/**
+	* Integer-Float hashmap.
+	* @classdesc Used for storing key/data pairs, wraps an efficient C++ implementation.
+	* @class
+	* @example
+	* // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.IntFltMap();
+	* // Adding two key/dat pairs
+	* h.put(5, 10.5);
+	* h.put(15, 20.2);
+	* // Getting data
+	* h.hasKey(5); // returns true
+	* h.get(15); // returns 20.2
+	* h.key(1); // returns 15
+	* h.dat(1); // returns 20.2
+	* h.length; // returns 2
+	* // Saving and loading:
+	* var fs &#x3D; require(&#x27;qminer&#x27;).fs;
+	* fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+	* h.save(fout).close(); // save and close write stream
+	* var h2 &#x3D; new ht.IntFltMap(); // new empty table
+	* var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+	* h2.load(fin); // load
+	*/
+ exports.IntFltMap &#x3D; function() {}
+/**
+	* Returns dat given key.
+	* @param {number} key - Hashmap key.
+	* @returns {number} Hashmap data.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntFltMap();
+    * // add a key/dat pair
+    * h.put(5, 10.5);
+    * // get the newly added data
+    * var val &#x3D; h.get(5); // returns 10.5
+	*/
+ exports.IntFltMap.prototype.get &#x3D; function(key) { return 0; }
+/**
+	* Add/update key-value pair.
+	* @param {number} key - Hashmap key.
+	* @param {number} data - Hashmap data.
+	* @returns {module:ht.IntFltMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntFltMap();
+    * // add a key/dat pair
+    * h.put(5, 10.5);
+	*/
+ exports.IntFltMap.prototype.put &#x3D; function(key, data) { return this; }
+/**
+	* Returns true if the map has a given key.
+	* @param {number} key - Hashmap key.
+	* @returns {boolean} True if the map contains key. Otherwise, false.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntFltMap();
+    * // add a key/dat pair
+    * h.put(5, 10.5);
+    * // check if the hashtable has the key
+    * h.hasKey(5); // returns true
+	*/
+ exports.IntFltMap.prototype.hasKey &#x3D; function(key) { return false; }
+/**
+    * Number of key/dat pairs. Type &#x60;number&#x60;.
+    * @example
+    * // create a new hashtable
+	* ht &#x3D; require(&#x27;qminer&#x27;).ht;
+	* var h &#x3D; new ht.IntFltMap();
+	* // Adding two key/dat pairs
+	* h.put(5, 10.5);
+    * // get the number of key/dat pairs
+    * var length &#x3D; h.length; // returns 1
+	*/
+ exports.IntFltMap.prototype.length &#x3D; 0;
+/**
+	* Returns n-th key.
+	* @param {number} n - Hashmap key index number. Should be between 0 and length-1.
+	* @returns {number} The n-th key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntFltMap();
+    * // add a key/dat pair
+    * h.put(5, 10.5);
+    * // get the first key
+    * var key &#x3D; h.key(0); // returns 5
+	*/
+ exports.IntFltMap.prototype.key &#x3D; function(n) { return 0; }
+/**
+    * Returns the ID of the key provided as parameter.
+    * @param {number} key - Hashmap key.
+    * @returns {number} n - Hashmap index number of the key.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntFltMap();
+    * // add a key/dat pair
+    * h.put(5, 10.5);
+    * // get key id of 5
+    * var key &#x3D; h.keyId(5); // returns 0
+    */
+ exports.IntFltMap.prototype.keyId &#x3D; function(n) { return 0; }
+/**
+	* Returns n-th dat.
+	* @param {number} n - Hashmap dat index number. Should be between 0 and length-1.
+	* @returns {number} The n-th data value.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntFltMap();
+    * // add a key/dat pair
+    * h.put(5, 10.5);
+    * // get the first dat
+    * var key &#x3D; h.key(0); // returns 10.5
+	*/
+ exports.IntFltMap.prototype.dat &#x3D; function(n) { return 0; }
+/**
+	* Loads the hashtable from input stream.
+	* @param {module:fs.FIn} fin - Input stream.
+	* @returns {module:ht.IntFltMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntFltMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+    * var fin &#x3D; fs.openRead(&#x27;map.dat&#x27;); // open read stream
+    * var h2 &#x3D; new ht.IntFltMap();
+    * h2.load(fin); // load
+	*/
+ exports.IntFltMap.prototype.load &#x3D; function(fin) { return this; }
+/**
+	* Saves the hashtable to output stream.
+	* @param {module:fs.FOut} fout - Output stream.
+	* @returns {module:fs.FOut} fout.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * var fs &#x3D; qm.fs;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntFltMap();
+    * fout &#x3D; fs.openWrite(&#x27;map.dat&#x27;); // open write stream
+    * h.save(fout).close(); // save and close write stream
+	*/
+ exports.IntFltMap.prototype.save &#x3D; function(fout) { return Object.create(require(&#x27;qminer&#x27;).fs.FOut.prototype); }
+/**
+	* Sorts by keys.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.IntFltMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntFltMap();
+    * h.put(5, 10.5);
+    * h.put(15, 20.2);
+    * // sort the hashtable by keys
+    * h.sortKey();
+	*/
+ exports.IntFltMap.prototype.sortKey &#x3D; function(asc) { return this; }
+/**
+	* Sorts by dat.
+	* @param {boolean} [asc&#x3D;true] - If true, sorts in ascending order.
+	* @returns {module:ht.IntFltMap} Self.
+    * @example
+    * // import modules
+    * var qm &#x3D; require(&#x27;qminer&#x27;);
+    * var ht &#x3D; qm.ht;
+    * // create a new hashtable
+    * var h &#x3D; new ht.IntFltMap();
+    * h.put(5, 10.5);
+    * h.put(15, 20.2);
+    * // sort the hashtable by dat
+    * h.sortDat();
+	*/
+ exports.IntFltMap.prototype.sortDat &#x3D; function(asc) { return this; }
+
+
+
+   /**
+	* classDesc	
+	* @returns {string} desc - Returns class description
+	*/
+exports.StrStrMap.prototype.classDesc &#x3D; function () { return &#x27;This class wraps a C++ string-string hash table&#x27;; }
+
+
+</code></pre>
+          </article>
+        </div>
+      </div>
+      <nav id="jsdoc-toc-nav" role="navigation"></nav>
+    </div>
+  </div>
+  <footer id="jsdoc-footer" class="jsdoc-footer">
+    <div id="jsdoc-footer-container">
+      <p>
+        
+      </p>
+    </div>
+  </footer>
+  <script src="scripts/jquery.min.js"></script>
+  <script src="scripts/tree.jquery.js"></script>
+  <script src="scripts/prettify.js"></script>
+  <script src="scripts/jsdoc-toc.js"></script>
+  <script src="scripts/linenumber.js"></script>
+  <script src="scripts/scrollanchor.js"></script>
+</body>
+
+</html>

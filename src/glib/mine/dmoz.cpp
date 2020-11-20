@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 /////////////////////////////////////////////////
@@ -125,7 +114,7 @@ int TDMozBs::GetRndExtUrlId(const int& RootCatId, TRnd& Rnd){
 }
 
 void TDMozBs::GetSubTreeCatIdV(
- const int& RootCatId, const TIntV& PosCatIdV, const TIntV& NegCatIdV, 
+ const int& RootCatId, const TIntV& PosCatIdV, const TIntV& NegCatIdV,
  TIntV& CatIdV, const bool& SubTreeOnlyP) const {
   CatIdV.Clr();
   // create traversal queue
@@ -167,7 +156,7 @@ void TDMozBs::GetSubTreeCatIdV(
 }
 
 void TDMozBs::GetSubTreeCatIdV(
- const TStr& RootCatNm, const TStrV& PosCatNmV, const TStrV& NegCatNmV, 
+ const TStr& RootCatNm, const TStrV& PosCatNmV, const TStrV& NegCatNmV,
  TIntV& CatIdV, const bool& SubTreeOnlyP) const {
   TIntV PosCatIdV; GetCatIdV(PosCatNmV, PosCatIdV);
   TIntV NegCatIdV; GetCatIdV(NegCatNmV, NegCatIdV);
@@ -177,7 +166,7 @@ void TDMozBs::GetSubTreeCatIdV(
 }
 
 void TDMozBs::GetSubTreeDocV(
- const TStr& RootCatNm, const TStrV& PosCatNmV, const TStrV& NegCatNmV, 
+ const TStr& RootCatNm, const TStrV& PosCatNmV, const TStrV& NegCatNmV,
  TStrV& DocNmV, TStrV& DocStrV,
  const bool& SubTreeOnlyP, const int& UrlWordsCopies) const {
   // get external-url-vector
@@ -224,7 +213,7 @@ PBowDocPartClust TDMozBs::GetBowDocPartClust(
   PBowSpV ConceptSpV=TBowClust::GetConceptSpV(BowDocWgtBs, BowSim, DIdV);
   // create sub-partition
   PBowDocPart SubDocPart=_GetBowDocPart(
-    RootCatId, PosCatIdV, NegCatIdV, 
+    RootCatId, PosCatIdV, NegCatIdV,
     BowDocBs, BowDocWgtBs, BowSim, MnCatDocs, Cats, CatN);
   if (SubDocPart->GetClusts()==0){SubDocPart=0;}
   // create cluster
@@ -235,7 +224,7 @@ PBowDocPartClust TDMozBs::GetBowDocPartClust(
 }
 
 PBowDocPart TDMozBs::_GetBowDocPart(
- const int& RootCatId, const TIntV& PosCatIdV, const TIntV& NegCatIdV, 
+ const int& RootCatId, const TIntV& PosCatIdV, const TIntV& NegCatIdV,
  const PBowDocBs& BowDocBs, const PBowDocWgtBs& BowDocWgtBs, const PBowSim& BowSim,
  const int& MnCatDocs, const int& Cats, int& CatN){
   TStr RootCatNm=GetCatNm(RootCatId);
@@ -243,8 +232,8 @@ PBowDocPart TDMozBs::_GetBowDocPart(
   PBowDocPart DocPart=TBowDocPart::New();
   DocPart->PutNm(RootCatNm);
   // get sub-category-ids
-  TIntV SubCatIdV; 
-  if (PosCatIdV.Empty()){GetSubCatIdV(RootCatId, SubCatIdV, true);} 
+  TIntV SubCatIdV;
+  if (PosCatIdV.Empty()){GetSubCatIdV(RootCatId, SubCatIdV, true);}
   else {SubCatIdV=PosCatIdV;}
   for (int NegCatIdN=0; NegCatIdN<NegCatIdV.Len(); NegCatIdN++){
     SubCatIdV.DelIfIn(NegCatIdV[NegCatIdN]);
@@ -274,6 +263,8 @@ PBowDocPart TDMozBs::GetBowDocPart(
   // create document partition
   PBowDocPart DocPart=TBowDocPart::New();
   DocPart->PutNm("Root");
+
+  printf("getting the main cluster ...\n");
   // get main-cluster
   PBowDocPartClust DocPartClust=GetBowDocPartClust(
    RootCatId, PosCatIdV, NegCatIdV, BowDocBs, BowDocWgtBs, BowSim, MnCatDocs, Cats, CatN);
@@ -331,8 +322,8 @@ void TDMozBs::GetBestClustV(
 }
 
 void TDMozBs::GetBestKWordV(
- const TFltBowDocPartClustKdV& WgtClustKdV, const double& TopWgtSumPrc, 
- const bool& AddLevP, const int& MnLev, const int& MxLev, 
+ const TFltBowDocPartClustKdV& WgtClustKdV, const double& TopWgtSumPrc,
+ const bool& AddLevP, const int& MnLev, const int& MxLev,
  TStrFltPrV& KWordStrWgtPrV){
   // collect keywords
   TStrIntH KWordStrToFqH(WgtClustKdV.Len());
@@ -395,6 +386,9 @@ PDMozBs TDMozBs::LoadTxt(const TStr& FPath,
     DMozContFNm=DMozNrFPath+TDMozInfo::RdfContentSampleFBase;
   }
 
+  printf("structure file `%s`\n", DMozStructFNm.CStr());
+  printf("content file `%s`\n", DMozContFNm.CStr());
+
   // aliases
   THash<TMd5Sig, TDMozAlias> SymMd5ToAliasH;
   TStrPool AliasStrPool;
@@ -402,6 +396,7 @@ PDMozBs TDMozBs::LoadTxt(const TStr& FPath,
   // create topic & alias entries
   {printf("Create topic & alias entries ...\n");
   PSIn DMozStructSIn=TFIn::New(DMozStructFNm);
+  printf("skipping top tag\n");
   TXmlDoc::SkipTopTag(DMozStructSIn);
   PXmlDoc XmlDoc; int XmlDocs=0;
   forever{
@@ -413,7 +408,12 @@ PDMozBs TDMozBs::LoadTxt(const TStr& FPath,
        TUInt64::GetMegaStr(uint64(DMozBs->CatNmPool.Len())).CStr());
     }
     XmlDoc=TXmlDoc::LoadTxt(DMozStructSIn);
-    if (!XmlDoc->IsOk()){break;}
+
+    if (!XmlDoc->IsOk()){
+        printf("%s\n", XmlDoc->GetMsgStr().CStr());
+        break;
+    }
+
     // extract fields from xml-trees
     PXmlTok TopTok=XmlDoc->GetTok();
     if (TopTok->IsTag("Topic")){
@@ -456,7 +456,10 @@ PDMozBs TDMozBs::LoadTxt(const TStr& FPath,
     // load xml tree
     XmlDocs++; if (XmlDocs%1000==0){printf("%d Docs\r", XmlDocs);}
     XmlDoc=TXmlDoc::LoadTxt(DMozStructSIn);
-    if (!XmlDoc->IsOk()){break;}
+    if (!XmlDoc->IsOk()){
+        printf("%s\n", XmlDoc->GetMsgStr().CStr());
+        break;
+    }
     // extract fields from xml-trees
     PXmlTok TopTok=XmlDoc->GetTok();
     if (TopTok->IsTag("Topic")){
@@ -526,7 +529,9 @@ PDMozBs TDMozBs::LoadTxt(const TStr& FPath,
   // clear aliases
   SymMd5ToAliasH.Clr();
   AliasStrPool.Clr();
-  
+
+  int MissingCatN = 0;
+
   if (!StructOnlyP){
     // create external-urls
     {printf("Create external-urls ...\n");
@@ -538,11 +543,12 @@ PDMozBs TDMozBs::LoadTxt(const TStr& FPath,
       XmlDocs++;
       if (XmlDocs%1000==0){
         printf("%d Docs   %d Duplicates   %d Ext-Urs   %s Ext-Page-Chars\r",
-         XmlDocs, Dupls, 
+         XmlDocs, Dupls,
          DMozBs->ExtUrlMd5ToUrlTitleDescSIdTrH.Len(),
          TUInt64::GetMegaStr(uint64(DMozBs->ExtPgStrPool.Len())).CStr());
       }
       XmlDoc=TXmlDoc::LoadTxt(DMozContSIn);
+
       if (!XmlDoc->IsOk()){break;}
       // extract fields from xml-trees
       PXmlTok TopTok=XmlDoc->GetTok();
@@ -551,8 +557,13 @@ PDMozBs TDMozBs::LoadTxt(const TStr& FPath,
         TStr CatNm=TopTok->GetArgVal("r:id");
         // get category entry
         TMd5Sig CatMd5(CatNm);
-		// if(!DMozBs->CatMd5ToTopicH.IsKey(CatMd5)) {printf("%s", CatNm.CStr());}
-        IAssert(DMozBs->CatMd5ToTopicH.IsKey(CatMd5));
+        // if(!DMozBs->CatMd5ToTopicH.IsKey(CatMd5)) {printf("%s", CatNm.CStr());}
+        /* IAssertR(DMozBs->CatMd5ToTopicH.IsKey(CatMd5), "Category not present `" + CatNm + "`"); */
+        if (!DMozBs->CatMd5ToTopicH.IsKey(CatMd5)) {
+            printf("category missing `%s`, ignoring\n", CatNm.CStr());
+            ++MissingCatN;
+            continue;
+        }
         TDMozTopic& DMozTopic=DMozBs->CatMd5ToTopicH.AddDat(CatMd5);
         // prepare external-urls vector
         DMozTopic.ExtUrlIdVN=DMozBs->ExtUrlIdV.Len();
@@ -614,6 +625,10 @@ PDMozBs TDMozBs::LoadTxt(const TStr& FPath,
     }}
   }
 
+  if (MissingCatN > 0) {
+      printf("number of categories missing in the structure: %d\n", MissingCatN);
+  }
+
   // return DMoz
   return DMozBs;
 }
@@ -641,7 +656,7 @@ void TDMozBs::SaveLnDocTxt(const PDMozBs& DMozBs, const TStr& RootCatNm,
   int Cats=DMozBs->GetCats(); int SavedCats=0;
   for (int CatId=0; CatId<Cats; CatId++){
     TStr CatNm=DMozBs->GetCatNm(CatId);
-    if ((!RootCatNm.Empty())&&(!CatNm.IsPrefix(RootCatNm))){continue;}
+    if ((!RootCatNm.Empty())&&(!CatNm.StartsWith(RootCatNm))){continue;}
     SavedCats++;
     if (SavedCats%1000==0){printf("  Saved Categories %d\r", SavedCats);}
     // external-urls
@@ -673,7 +688,7 @@ void TDMozBs::SaveTxt(const PDMozBs& DMozBs, const TStr& RootCatNm,
   fprintf(fOut, "#Categories: %d\n", Cats);
   for (int CatId=0; CatId<Cats; CatId++){
     TStr CatNm=DMozBs->GetCatNm(CatId);
-    if ((!RootCatNm.Empty())&&(!CatNm.IsPrefix(RootCatNm))){continue;}
+    if ((!RootCatNm.Empty())&&(!CatNm.StartsWith(RootCatNm))){continue;}
     SavedCats++;
     if (SavedCats%1000==0){printf("  Saved Categories %d\r", SavedCats);}
     fprintf(fOut, "cat: '%s'\n", CatNm.CStr());
@@ -814,25 +829,25 @@ TDMozCfy::TDMozCfy(PBowDocBs _BowDocBs, PBowDocPart _BowDocPart, const int& MnCl
     BowDocPart = TBowDocPart::New();
     TSStack<PBowDocPartClust> ClustS;
     for (int ClustN = 0; ClustN < _BowDocPart->GetClusts(); ClustN++) {
-        ClustS.Push(_BowDocPart->GetClust(ClustN)); 
+        ClustS.Push(_BowDocPart->GetClust(ClustN));
     }
     while (!ClustS.Empty()) {
         PBowDocPartClust Clust = ClustS.Top(); ClustS.Pop();
-		// check if big enough
-		if (Clust->GetDocs() < MnClustDocs) { continue; }
-		// put name to cluster if empty
-        if (Clust->GetNm().Empty()) { 
-			PBowKWordSet ClustKWordSet = Clust->GetConceptSpV()->GetKWordSet(_BowDocBs);
-			Clust->PutNm(ClustKWordSet->GetTopKWords(3, 1.0)->GetKWordsStr());            
+        // check if big enough
+        if (Clust->GetDocs() < MnClustDocs) { continue; }
+        // put name to cluster if empty
+        if (Clust->GetNm().Empty()) {
+            PBowKWordSet ClustKWordSet = Clust->GetConceptSpV()->GetKWordSet(_BowDocBs);
+            Clust->PutNm(ClustKWordSet->GetTopKWords(3, 1.0)->GetKWordsStr());
         }
-		// remember the cluster
-		BowDocPart->AddClust(TBowDocPartClust::New(_BowDocBs, Clust->GetNm(), 
+        // remember the cluster
+        BowDocPart->AddClust(TBowDocPartClust::New(_BowDocBs, Clust->GetNm(),
             Clust->GetQual(), TIntV(), Clust->GetConceptSpV(), NULL));
-		// check for any subclusters
+        // check for any subclusters
         if (Clust->IsSubPart()) {
             PBowDocPart SubPart = Clust->GetSubPart();
             for (int ClustN = 0; ClustN < SubPart->GetClusts(); ClustN++) {
-                ClustS.Push(SubPart->GetClust(ClustN)); 
+                ClustS.Push(SubPart->GetClust(ClustN));
             }
         }
     }
@@ -848,69 +863,91 @@ TDMozCfy::TDMozCfy(PBowDocBs _BowDocBs, PBowDocPart _BowDocPart, const TStr& Cat
     Docs = BowDocWgtBs->GetDocs();
     WordFqV = BowDocWgtBs->GetWordFqV();
     // load a list of prefered categories
-    TFIn CatListFIn(CatListFNm); 
-	TStrIntPrV PrefixV; TStrV IgnoreV; TStrH CatNmH; TStr LnStr;
+    TFIn CatListFIn(CatListFNm);
+    TStrIntPrV PrefixV; TStrPrV SuffixV; TStrV IgnoreV; TStrH CatNmH; TStr LnStr;
     while (CatListFIn.GetNextLn(LnStr)) {
-        if (LnStr.IsWs()) { continue;  } 
-		else if (LnStr.IsChIn('\t')) { 
-			TStr Prefix, MxLevelStr;
-			LnStr.SplitOnCh(Prefix, '\t', MxLevelStr);
-			PrefixV.Add(TStrIntPr(Prefix, MxLevelStr.GetInt()));
-		} else if (LnStr[0] == '-') {
-			printf("Ignore: %s\n", LnStr.CStr());
-			IgnoreV.Add(LnStr.GetSubStr(1));
-		} else { CatNmH.AddDat(LnStr); }
+        if (LnStr.IsWs()) { continue;  }
+        else if (LnStr.IsChIn('\t')) {
+            TStr Prefix, MxLevelStr;
+            LnStr.SplitOnCh(Prefix, '\t', MxLevelStr);
+            PrefixV.Add(TStrIntPr(Prefix, MxLevelStr.GetInt()));
+        } else if (LnStr.IsChIn('*')) {
+            SuffixV.Add(TStrPr(LnStr.LeftOf('*'), LnStr.RightOf('*')));
+        } else if (LnStr[0] == '-') {
+            printf("Ignore: %s\n", LnStr.CStr());
+            IgnoreV.Add(LnStr.GetSubStr(1));
+        } else {
+            CatNmH.AddDat(LnStr);
+        }
     }
     // prepare a bowpart with only prefered categories
     BowDocPart = TBowDocPart::New();
     TSStack<PBowDocPartClust> ClustS;
     for (int ClustN = 0; ClustN < _BowDocPart->GetClusts(); ClustN++) {
-        ClustS.Push(_BowDocPart->GetClust(ClustN)); 
+        ClustS.Push(_BowDocPart->GetClust(ClustN));
     }
-	int GoodClusts = 0;
+    int GoodClusts = 0;
     while (!ClustS.Empty()) {
         PBowDocPartClust Clust = ClustS.Top(); ClustS.Pop();
-		TStr ClustNm = Clust->GetNm();
-		if (!PrefixV.Empty() || !CatNmH.Empty()) {
-			// check if prefix and level ok
-			bool AddedP = false;
-			for (int PrefixN = 0; PrefixN < PrefixV.Len(); PrefixN++) {
-				const TStr& Prefix = PrefixV[PrefixN].Val1;
-				const int MxLevel = PrefixV[PrefixN].Val2;
-				if (ClustNm.IsPrefix(Prefix) && ClustNm.CountCh('/') <= MxLevel) {
-					BowDocPart->AddClust(TBowDocPartClust::New(_BowDocBs, ClustNm, 
-					   Clust->GetQual(), TIntV(), Clust->GetConceptSpV(), NULL));
-					AddedP = true; GoodClusts++; break;
-				}
-			}
-			// otherwise check if category approved
-			if (CatNmH.IsKey(ClustNm) && !AddedP) {
-				BowDocPart->AddClust(TBowDocPartClust::New(_BowDocBs, Clust->GetNm(), 
-					Clust->GetQual(), TIntV(), Clust->GetConceptSpV(), NULL));
-				GoodClusts++;
-			}
-		} else {
-			// we have a black list
-			bool IgnoreP = false;
-			for (int IgnoreN = 0; IgnoreN < IgnoreV.Len(); IgnoreN++) {
-				const TStr& Ignore = IgnoreV[IgnoreN];
-				if (ClustNm.IsPrefix(Ignore)) {	IgnoreP = true; break; }
-			}
-			if (!IgnoreP) {
-				BowDocPart->AddClust(TBowDocPartClust::New(_BowDocBs, Clust->GetNm(), 
-					Clust->GetQual(), TIntV(), Clust->GetConceptSpV(), NULL));
-				GoodClusts++;
-			}
-		}
-		// check children
+        TStr ClustNm = Clust->GetNm();
+        // we have a black list
+        bool IgnoreP = false;
+        for (int IgnoreN = 0; IgnoreN < IgnoreV.Len(); IgnoreN++) {
+            const TStr& Ignore = IgnoreV[IgnoreN];
+            if (ClustNm.StartsWith(Ignore)) { IgnoreP = true; break; }
+        }
+        // if category is black-listed then skip it and all it's children
+        if (IgnoreP) { continue; }
+
+        // by default we accept
+        bool AddP = true;
+        // check if we have a white list
+        if (!PrefixV.Empty() || !SuffixV.Empty() || !CatNmH.Empty()) {
+            // we have a white list, by default all is bad
+            AddP = false;
+            // check if we match any prefix within the max level limit
+            const int ClustLevel = ClustNm.CountCh('/');
+            for (int PrefixN = 0; PrefixN < PrefixV.Len(); PrefixN++) {
+                const TStr& Prefix = PrefixV[PrefixN].Val1;
+                const int MxLevel = PrefixV[PrefixN].Val2;
+                if (ClustNm.StartsWith(Prefix) &&  ClustLevel <= MxLevel) {
+                    // we do, put the flag on
+                    AddP = true;
+                }
+            }
+            // check if we match any suffix
+            for (const TStrPr& Suffix : SuffixV) {
+                if (ClustNm.StartsWith(Suffix.Val1) && ClustNm.EndsWith(Suffix.Val2)) {
+                    AddP = true;
+                }
+            }
+            // check if we are in the explicit white list
+            if (CatNmH.IsKey(ClustNm)) {
+                AddP = true;
+                CatNmH.GetDat(ClustNm)++;
+            }
+        }
+
+        if (AddP) {
+            BowDocPart->AddClust(TBowDocPartClust::New(_BowDocBs, ClustNm,
+                Clust->GetQual(), TIntV(), Clust->GetConceptSpV(), NULL));
+            GoodClusts++;
+        }
+
+        // check children
         if (Clust->IsSubPart()) {
             PBowDocPart SubPart = Clust->GetSubPart();
             for (int ClustN = 0; ClustN < SubPart->GetClusts(); ClustN++) {
-                ClustS.Push(SubPart->GetClust(ClustN)); 
+                ClustS.Push(SubPart->GetClust(ClustN));
             }
         }
     }
-	printf("Loaded %d DMoz clusters\n", GoodClusts);
+    for (const auto& CatNmFq : CatNmH) {
+        if (CatNmFq.Dat == 0) {
+            printf("no instances of %s found\n", CatNmFq.Key.CStr());
+        }
+    }
+    printf("Loaded %d DMoz clusters\n", GoodClusts);
     // prepare similarity measure
     BowSim = TBowSim::New(bstCos);
 }
@@ -927,9 +964,9 @@ void TDMozCfy::Save(TSOut& SOut) const {
     Docs.Save(SOut); WordFqV.Save(SOut);
     BowDocPart->Save(SOut);
 }
- 
-void TDMozCfy::Classify(const TStr& HtmlStr, TStrFltKdV& CatNmWgtV, 
-		TStrFltKdV& KeyWdWgtV, const int& MxCats) {
+
+void TDMozCfy::Classify(const TStr& HtmlStr, TStrFltKdV& CatNmWgtV,
+        TStrFltKdV& KeyWdWgtV, const int& MxCats) {
 
     // create bow sparse vector
     PBowSpV QueryBowSpV = VocBowDocBs->GetSpVFromHtmlStr(HtmlStr, Docs, WordFqV);
@@ -956,15 +993,19 @@ void TDMozCfy::Classify(const TStr& HtmlStr, TStrFltKdV& CatNmWgtV,
 
 PDMozCfy TDMozCfy::LoadFPath(const TStr& DMozFPath, const int& MnClustDocs) {
     if (TFile::Exists(DMozFPath + "DMoz.dat")) {
+        printf("Reading DMoz.dat. Note: DMoz.txt will be ignored. Delete the .dat file to rebuild using settings in DMoz.txt.\n");
         return TDMozCfy::LoadBin(DMozFPath + "DMoz.dat");
-    } else {
-		printf("Preparing DMoz.dat ...\n");
-		PBowDocBs BowDocBs = TBowDocBs::LoadBin(DMozFPath + "Top.Bow");
-    	PBowDocPart BowDocPart = TBowDocPart::LoadBin(DMozFPath + "Top.BowPart");
-		PDMozCfy DMoz = TFile::Exists(DMozFPath + "DMoz.txt") ?
-			TDMozCfy::New(BowDocBs, BowDocPart, DMozFPath + "DMoz.txt") :
-			TDMozCfy::New(BowDocBs, BowDocPart);
+    } else if (TFile::Exists(DMozFPath + "Top.Bow") && TFile::Exists(DMozFPath + "Top.BowPart"))  {
+        printf("Preparing DMoz.dat ...\n");
+        PBowDocBs BowDocBs = TBowDocBs::LoadBin(DMozFPath + "Top.Bow");
+        PBowDocPart BowDocPart = TBowDocPart::LoadBin(DMozFPath + "Top.BowPart");
+        printf("Checking DMoz.txt for valid categories ...\n");
+        PDMozCfy DMoz = TFile::Exists(DMozFPath + "DMoz.txt") ?
+            TDMozCfy::New(BowDocBs, BowDocPart, DMozFPath + "DMoz.txt") :
+            TDMozCfy::New(BowDocBs, BowDocPart);
         DMoz->SaveBin(DMozFPath + "DMoz.dat");
-		return DMoz;
+        return DMoz;
+    } else {
+        return NULL;
     }
 }

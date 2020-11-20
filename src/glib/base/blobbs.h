@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #include "bd.h"
@@ -24,79 +13,80 @@
 ClassTVQ(TBlobPt, TBlobPtV, TBlobPtQ)//{
 public:
   static const int MnBlobBfL;
-  static const int Flags;
-  uchar Seg;
+  uint16 Seg;
   uint Addr;
-  TB8Set FSet1, FSet2, FSet3;
 public:
-  TBlobPt():
-    Seg(0), Addr(TUInt::Mx), FSet1(), FSet2(), FSet3(){}
-  TBlobPt(const TBlobPt& Pt):
-    Seg(Pt.Seg), Addr(Pt.Addr),
-    FSet1(Pt.FSet1), FSet2(Pt.FSet2), FSet3(Pt.FSet3){}
-  TBlobPt(const uchar& _Seg, const uint& _Addr,
-   const TB8Set& _FSet1, const TB8Set& _FSet2, const TB8Set& _FSet3):
-    Seg(_Seg), Addr(_Addr), FSet1(_FSet1), FSet2(_FSet2), FSet3(_FSet3){}
-  TBlobPt(const uchar& _Seg, const uint& _Addr):
-    Seg(_Seg), Addr(_Addr), FSet1(), FSet2(), FSet3(){}
-  TBlobPt(const uint& _Addr):
-    Seg(0), Addr(_Addr), FSet1(), FSet2(), FSet3(){}
-  TBlobPt(const int& _Addr):
-    Seg(0), Addr(uint(_Addr)), FSet1(), FSet2(), FSet3(){IAssert(_Addr>=0);}
+  TBlobPt(): Seg(0), Addr(TUInt::Mx){}
+  TBlobPt(const TBlobPt& Pt): Seg(Pt.Seg), Addr(Pt.Addr) {}
+  TBlobPt(const uint16& _Seg, const uint& _Addr): Seg(_Seg), Addr(_Addr) {}
+  TBlobPt(const uint& _Addr): Seg(0), Addr(_Addr) {}
+  TBlobPt(const int& _Addr): Seg(0), Addr(uint(_Addr)) {IAssert(_Addr>=0);}
   ~TBlobPt(){}
-  TBlobPt(TSIn& SIn){
-    SIn.Load(Seg); SIn.Load(Addr);
-    FSet1=TB8Set(SIn); FSet2=TB8Set(SIn); FSet3=TB8Set(SIn);}
-  void Save(TSOut& SOut) const {
-    SOut.Save(Seg); SOut.Save(Addr);
-    FSet1.Save(SOut); FSet2.Save(SOut); FSet3.Save(SOut);}
+  TBlobPt(TSIn& SIn){SIn.Load(Seg); SIn.Load(Addr);}
+  void Save(TSOut& SOut) const {SOut.Save(Seg); SOut.Save(Addr);}
 
   TBlobPt& operator=(const TBlobPt& Pt){
-    if (this!=&Pt){
-      Seg=Pt.Seg; Addr=Pt.Addr;
-      FSet1=Pt.FSet1; FSet2=Pt.FSet2; FSet3=Pt.FSet3;}
+    if (this!=&Pt){Seg=Pt.Seg; Addr=Pt.Addr;}
     return *this;}
   bool operator==(const TBlobPt& Pt) const {
     return (Seg==Pt.Seg)&&(Addr==Pt.Addr);}
   bool operator<(const TBlobPt& Pt) const {
     return (Seg<Pt.Seg)||((Seg==Pt.Seg)&&(Addr<Pt.Addr));}
-  int GetMemUsed() const {return sizeof(TBlobPt);}
+  uint64 GetMemUsed() const {return sizeof(TBlobPt);}
 
   int GetPrimHashCd() const {return abs(int(Addr));}
   int GetSecHashCd() const {return (abs(int(Addr))+int(Seg)*0x10);}
 
   bool Empty() const {return Addr==TUInt::Mx;}
   void Clr(){Seg=0; Addr=TUInt::Mx;}
-  void PutSeg(const uchar& _Seg){Seg=_Seg;}
-  uchar GetSeg() const {return Seg;}
+  void PutSeg(const uint16& _Seg){Seg=_Seg;}
+  uint16 GetSeg() const {return Seg;}
   void PutAddr(const uint& _Addr){Addr=_Addr;}
   uint GetAddr() const {return Addr;}
-  void PutFlag(const int& FlagN, const bool& Val);
-  bool IsFlag(const int& FlagN) const;
-  void MergeFlags(const TBlobPt& Pt){
-    FSet1|=Pt.FSet1; FSet2|=Pt.FSet2; FSet3|=Pt.FSet3;}
-  void PutFSet(const int& FSetN, const TB8Set& FSet);
-  TB8Set GetFSet(const int& FSetN);
 
   static TBlobPt Load(const PFRnd& FRnd){
-    uchar Seg=FRnd->GetUCh(); uint Addr=FRnd->GetUInt();
-    TB8Set B8Set1(FRnd->GetUCh()); TB8Set B8Set2(FRnd->GetUCh());
-    TB8Set B8Set3(FRnd->GetUCh());
-    return TBlobPt(Seg, Addr, B8Set1, B8Set2, B8Set3);}
-  void Save(const PFRnd& FRnd) const {
-    FRnd->PutUCh(Seg); FRnd->PutUInt(Addr);
-    FRnd->PutUCh(FSet1.GetUCh()); FRnd->PutUCh(FSet2.GetUCh());
-    FRnd->PutUCh(FSet3.GetUCh());}
-  static TBlobPt LoadAddr(const PFRnd& FRnd, const uchar& Seg=0){
+  uint16 Seg=FRnd->GetUInt16(); uint Addr=FRnd->GetUInt();
+    return TBlobPt(Seg, Addr);}
+  void Save(const PFRnd& FRnd) const {FRnd->PutUInt16(Seg); FRnd->PutUInt(Addr);}
+  static TBlobPt LoadAddr(const PFRnd& FRnd, const uint16& Seg=0){
     return TBlobPt(Seg, FRnd->GetUInt());}
-  void SaveAddr(const PFRnd& FRnd) const {
-    FRnd->PutUInt(Addr);}
+  void SaveAddr(const PFRnd& FRnd) const {FRnd->PutUInt(Addr);}
 
   TStr GetAddrStr() const {
     TChA AddrChA; AddrChA+=TInt::GetStr(Seg); AddrChA+=':';
     AddrChA+=TUInt::GetStr(Addr); return AddrChA;}
 
   TStr GetStr() const;
+};
+
+/////////////////////////////////////////////////
+// Statistics for TBlobBs
+class TBlobBsStats {
+public:
+  uint64 Puts;
+  uint64 PutsNew;
+  uint64 Gets;
+  uint64 Dels;
+  uint64 SizeChngs;
+  double AvgGetLen;
+  double AvgPutLen;
+  double AvgPutNewLen;
+  uint64 AllocUsedSize;
+  uint64 AllocUnusedSize;
+  uint64 AllocSize;
+  uint64 AllocCount;
+  uint64 ReleasedCount;
+  uint64 ReleasedSize;
+
+public:
+  TBlobBsStats() { Reset(); }
+
+  /// Resets data in this object
+  void Reset();
+  /// Creates a clone - copies all data
+  TBlobBsStats Clone() const;
+  /// Correctly add data from another object into this one
+  void Add(const TBlobBsStats& Other);
 };
 
 /////////////////////////////////////////////////
@@ -131,7 +121,7 @@ public:
   int GetMxSegLen(const PFRnd& FBlobBs);
 
   static const TStr BlockLenVNm;
-  void GenBlockLenV(TIntV& BlockLenV);
+  static void GenBlockLenV(TIntV& BlockLenV);
   void PutBlockLenV(const PFRnd& FBlobBs, const TIntV& BlockLenV);
   void GetBlockLenV(const PFRnd& FBlobBs, TIntV& BlockLenV);
 
@@ -154,31 +144,45 @@ public:
 
   void AssertBfCsEqFlCs(const TCs& BfCs, const TCs& FCs);
 
+  /// save data stored in SIn for the first time
   virtual TBlobPt PutBlob(const PSIn& SIn)=0;
   TBlobPt PutBlob(const TStr& Str){
     PSIn SIn=TStrIn::New(Str); return PutBlob(SIn);}
-  virtual TBlobPt PutBlob(const TBlobPt& BlobPt, const PSIn& SIn)=0;
+  /// update the SIn data currently stored in BlobPt. If data is reallocated, return the size of released chunk (ReleasedSize)
+  virtual TBlobPt PutBlob(const TBlobPt& BlobPt, const PSIn& SIn, int& ReleasedSize)=0;
+  /// return blob stored in BlobPt
   virtual PSIn GetBlob(const TBlobPt& BlobPt)=0;
-  virtual void DelBlob(const TBlobPt& BlobPt)=0;
+  /// delete blob stored in BlobPt. Return the size of the released data block
+  virtual int DelBlob(const TBlobPt& BlobPt)=0;
 
   virtual TBlobPt GetFirstBlobPt()=0;
   virtual TBlobPt FFirstBlobPt()=0;
   virtual bool FNextBlobPt(TBlobPt& TrvBlobPt, TBlobPt& BlobPt, PSIn& BlobSIn)=0;
   bool FNextBlobPt(TBlobPt& TrvBlobPt, PSIn& BlobSIn){
     TBlobPt BlobPt; return FNextBlobPt(TrvBlobPt, BlobPt, BlobSIn);}
+
+  virtual const TBlobBsStats& GetStats()=0;
+  virtual void ResetStats() = 0;
 };
 
 /////////////////////////////////////////////////
 // General-Blob-Base
 class TGBlobBs: public TBlobBs{
 private:
+  /// Random-access file - BLOB storage
   PFRnd FBlobBs;
+  /// access mode for file
   TFAccess Access;
+  /// maximal length of segment - of BLOB file
   int MxSegLen;
+  /// list of precomputed block lengths - each BLOB falls into one of them,
+  /// so that allocations happen in just several possible chuncks
   TIntV BlockLenV;
+  /// list of free blob pointers (their content was deleted, so blobs are free)
   TBlobPtV FFreeBlobPtV;
   TBlobPt FirstBlobPt;
   static TStr GetNrBlobBsFNm(const TStr& BlobBsFNm);
+  TBlobBsStats Stats;
 public:
   TGBlobBs(const TStr& BlobBsFNm, const TFAccess& _Access=faRdOnly,
    const int& _MxSegLen=-1);
@@ -190,16 +194,23 @@ public:
   TGBlobBs& operator=(const TGBlobBs&){Fail; return *this;}
 
   TStr GetVersionStr() const {return TStr("General Blob Base Format 1.0");}
+  // save data stored in SIn for the first time
   TBlobPt PutBlob(const PSIn& SIn);
-  TBlobPt PutBlob(const TBlobPt& BlobPt, const PSIn& SIn);
+  // update the SIn data currently stored in BlobPt. If data is reallocated, return the size of released chunk (ReleasedSize)
+  TBlobPt PutBlob(const TBlobPt& BlobPt, const PSIn& SIn, int& ReleasedSize);
+  // return blob stored in BlobPt
   PSIn GetBlob(const TBlobPt& BlobPt);
-  void DelBlob(const TBlobPt& BlobPt);
+  // delete blob stored in BlobPt. Return the size of the released data block
+  int DelBlob(const TBlobPt& BlobPt);
 
   TBlobPt GetFirstBlobPt(){return FirstBlobPt;}
   TBlobPt FFirstBlobPt();
   bool FNextBlobPt(TBlobPt& TrvBlobPt, TBlobPt& BlobPt, PSIn& BlobSIn);
 
   static bool Exists(const TStr& BlobBsFNm);
+
+  const TBlobBsStats& GetStats() { return Stats; }
+  void ResetStats() { Stats.Reset(); }
 };
 
 /////////////////////////////////////////////////
@@ -210,12 +221,15 @@ private:
   int MxSegLen;
   TStr NrFPath, NrFMid;
   TBlobBsV SegV;
-  int CurSegN;
+  TIntV BlockLenV;
+  /// for each block size store the segment index that last had space to store the buffer of that size
+  THash<TInt, TUInt16> BlockSizeToSegH;
   static void GetNrFPathFMid(const TStr& BlobBsFNm, TStr& NrFPath, TStr& NrFMid);
   static TStr GetMainFNm(const TStr& NrFPath, const TStr& NrFMid);
   static TStr GetSegFNm(const TStr& NrFPath, const TStr& NrFMid, const int& SegN);
   void LoadMain(int& Segs);
   void SaveMain() const;
+  TBlobBsStats Stats;
 public:
   TMBlobBs(const TStr& BlobBsFNm, const TFAccess& _Access=faRdOnly,
    const int& _MxSegLen=-1);
@@ -228,15 +242,21 @@ public:
 
   TStr GetVersionStr() const {
     return TStr("Multiple-File Blob Base Format 1.0");}
+  /// save data stored in SIn for the first time
   TBlobPt PutBlob(const PSIn& SIn);
-  TBlobPt PutBlob(const TBlobPt& BlobPt, const PSIn& SIn);
+  /// update the SIn data currently stored in BlobPt. If data is reallocated, return the size of released chunk (ReleasedSize)
+  TBlobPt PutBlob(const TBlobPt& BlobPt, const PSIn& SIn, int& ReleasedSize);
+  /// return blob stored in BlobPt
   PSIn GetBlob(const TBlobPt& BlobPt);
-  void DelBlob(const TBlobPt& BlobPt);
+  /// delete blob stored in BlobPt. Return the size of the released data block
+  int DelBlob(const TBlobPt& BlobPt);
 
   TBlobPt GetFirstBlobPt();
   TBlobPt FFirstBlobPt();
   bool FNextBlobPt(TBlobPt& TrvBlobPt, TBlobPt& BlobPt, PSIn& BlobSIn);
 
   static bool Exists(const TStr& BlobBsFNm);
-};
 
+  const TBlobBsStats& GetStats();
+  void ResetStats();
+};

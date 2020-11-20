@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 ////////////////////////////////////////////////
@@ -94,28 +83,18 @@ TStr TLxChDef::GetUcStr(const TStr& Str) const {
   return UcStr;
 }
 
+TLxChDef TLxChDef::UsAsciiChDef = TLxChDef(lcdtUsAscii);
+TLxChDef TLxChDef::YuAsciiChDef = TLxChDef(lcdtYuAscii);
 
-PLxChDef TLxChDef::GetChDef(const TLxChDefTy& ChDefTy){
-  static PLxChDef UsAsciiChDef=NULL;
-  static PLxChDef YuAsciiChDef=NULL;
+const TLxChDef& TLxChDef::GetChDef(const TLxChDefTy& ChDefTy){
   switch (ChDefTy){
     case lcdtUsAscii:
-      if (UsAsciiChDef.Empty()){UsAsciiChDef=TLxChDef::New(lcdtUsAscii);}
       return UsAsciiChDef;
     case lcdtYuAscii:
-      if (YuAsciiChDef.Empty()){YuAsciiChDef=TLxChDef::New(lcdtYuAscii);}
       return YuAsciiChDef;
-    default: Fail; return NULL;
+  default: throw TExcept::New("Unknown character definition type");
   }
 }
-
-//TLxChDef& TLxChDef::GetChDefRef(const TLxChDefTy& ChDefTy){
-//  switch (ChDefTy){
-//    case lcdtUsAscii: return *UsAsciiChDef;
-//    case lcdtYuAscii: return *YuAsciiChDef;
-//    default: Fail; return *UsAsciiChDef;;
-//  }
-//}
 
 /////////////////////////////////////////////////
 // Lexical-Symbols
@@ -293,7 +272,7 @@ TILx::TILx(const PSIn& _SIn, const TFSet& OptSet, const TLxChDefTy& ChDefTy):
   PrevSymStStack(), RwStrH(50),
   IsCmtAlw(false), IsRetEoln(false), IsSigNum(false),
   IsUniStr(false), IsCsSens(false), IsExcept(false),
-  IsTabSep(false), IsList(false),
+  IsTabSep(false), IsList(false), IsIgnoreEscape(false),
   Sym(syUndef),
   Str(), UcStr(), CmtStr(),
   Bool(false), Int(0), Flt(0),
@@ -312,13 +291,14 @@ void TILx::SetOpt(const int& Opt, const bool& Val){
     case iloExcept: IsExcept=Val; break;
     case iloTabSep: IsTabSep=Val; break;
     case iloList: IsList=Val; break;
+    case iloIgnoreEscape: IsIgnoreEscape=Val; break;
     default: Fail;
   }
 }
 
 TLxSym TILx::AddRw(const TStr& Str){
   IAssert(RwStrH.Len()<syMxRw-syMnRw+1);
-  TStr UcStr=ChDef->GetUcStr(Str);
+  TStr UcStr=ChDef.GetUcStr(Str);
   IAssert(!RwStrH.IsKey(UcStr));
   TLxSym RwSym=TLxSym(syMnRw+RwStrH.Len());
   RwStrH.AddDat(Str, TInt(int(RwSym)));
@@ -344,7 +324,7 @@ TLxSym TILx::GetSym(const TFSet& Expect){
     } else {
       Str.Clr();
       if (IsBof()){GetCh();}
-      while (!ChDef->IsTerm(Ch)){Str.AddCh(Ch); GetCh();}
+      while (!ChDef.IsTerm(Ch)){Str.AddCh(Ch); GetCh();}
       bool _IsRetEoln=IsRetEoln; IsRetEoln=true;
       GetSym(TFSet()|syEoln|syEof); Sym=syLn;
       IsRetEoln=_IsRetEoln;
@@ -356,26 +336,26 @@ TLxSym TILx::GetSym(const TFSet& Expect){
     if (Ch==TCh::TabCh){ // tab character
       Sym=syTab; GetCh();
     } else
-    if (ChDef->IsTerm(Ch)){ // eoln & eof characters
+    if (ChDef.IsTerm(Ch)){ // eoln & eof characters
       bool _IsRetEoln=IsRetEoln; IsRetEoln=true; IsTabSep=false;
       GetSym(TFSet()|syEoln|syEof);
       IsRetEoln=_IsRetEoln; IsTabSep=true;
     } else {
       Str.Clr();
-      while ((!ChDef->IsTerm(Ch))&&(Ch!=TCh::TabCh)){
-        Str.AddCh(Ch); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh();}
+      while ((!ChDef.IsTerm(Ch))&&(Ch!=TCh::TabCh)){
+        Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh();}
       Sym=syStr; QuoteP=false;
     }
   } else {
     // usual symbol
-    while (ChDef->IsSpace(Ch)){GetCh();}
+    while (ChDef.IsSpace(Ch)){GetCh();}
     SymLnN=LnN; SymLnChN=LnChN; SymChN=ChN;
 
-    if (ChDef->IsAlpha(Ch)){
+    if (ChDef.IsAlpha(Ch)){
       if (IsUniStr){Sym=syStr;} else {Sym=syIdStr;}
       Str.Clr(); UcStr.Clr(); QuoteP=false;
-      do {Str.AddCh(Ch); UcStr.AddCh(ChDef->GetUc(Ch));}
-      while (ChDef->IsAlNum(GetCh()));
+      do {Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch));}
+      while (ChDef.IsAlNum(GetCh()));
       if (!RwStrH.Empty()){
         TStr RwStr=Str; if (!IsCsSens){RwStr=UcStr;}
         int SymKeyId=RwStrH.GetKeyId(RwStr);
@@ -392,7 +372,7 @@ TLxSym TILx::GetSym(const TFSet& Expect){
       GetCh();
       forever{
         while ((Ch!=QuoteCh)&&(Ch!='\\')&&(Ch!=TCh::EofCh)){
-          Str.AddCh(Ch); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh();}
+          Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh();}
         if (Ch==TCh::EofCh){
           Sym=syUndef; break;
         } else if (Ch==QuoteCh){
@@ -400,15 +380,15 @@ TLxSym TILx::GetSym(const TFSet& Expect){
         } else {
           GetCh();
           switch (Ch){
-            case '"': Str.AddCh(Ch); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh(); break;
-            case '\\': Str.AddCh(Ch); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh(); break;
-            case '\'': Str.AddCh(Ch); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh(); break;
-            case '/': Str.AddCh(Ch); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh(); break;
-            case 'b': Str.AddCh('\b'); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh(); break;
-            case 'f': Str.AddCh('\f'); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh(); break;
-            case 'n': Str.AddCh('\n'); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh(); break;
-            case 'r': Str.AddCh('\r'); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh(); break;
-            case 't': Str.AddCh('\t'); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh(); break;
+            case '"': Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh(); break;
+            case '\\': Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh(); break;
+            case '\'': Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh(); break;
+            case '/': Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh(); break;
+            case 'b': Str.AddCh('\b'); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh(); break;
+            case 'f': Str.AddCh('\f'); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh(); break;
+            case 'n': Str.AddCh('\n'); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh(); break;
+            case 'r': Str.AddCh('\r'); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh(); break;
+            case 't': Str.AddCh('\t'); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh(); break;
             case 'u': {
               // unicode character, represented using 4 hexadecimal digits
               GetCh(); EAssertR(TCh::IsHex(Ch), "Invalid hexadecimal digit in unicode escape");
@@ -420,28 +400,35 @@ TLxSym TILx::GetSym(const TFSet& Expect){
               GetCh(); EAssertR(TCh::IsHex(Ch), "Invalid hexadecimal digit in unicode escape");
               UChCd = 16 * UChCd + TCh::GetHex(Ch);
               // get as UTF8 encoded characters
+              if (UChCd == 0) { UChCd = 32; }
               TUnicode::EncodeUtf8(UChCd, Str);
-			  TUnicode::EncodeUtf8(UChCd, UcStr); }
-              GetCh(); break; 
-            default: Sym=syUndef; break;
+              TUnicode::EncodeUtf8(UChCd, UcStr); }
+              GetCh(); break;
+            default:
+              if (IsIgnoreEscape) {
+                Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh();
+              } else {
+                Sym=syUndef;
+              }
+              break;
           }
           if (Sym==syUndef){
             throw PExcept(new TExcept("Invalid Escape Sequence in Quoted String"));}
         }
       }
     } else
-    if ((ChDef->IsNum(Ch))||(IsSigNum&&((Ch=='+')||(Ch=='-')))){
+    if ((ChDef.IsNum(Ch))||(IsSigNum&&((Ch=='+')||(Ch=='-')))){
       Str.Clr(); bool IntP=true;
-      do {Str.AddCh(Ch);} while (ChDef->IsNum(GetCh()));
+      do {Str.AddCh(Ch);} while (ChDef.IsNum(GetCh()));
       if (Expect.In(syFlt)){
         if (Ch=='.'){
           Str.AddCh(Ch); IntP=false;
-          while (ChDef->IsNum(GetCh())){Str.AddCh(Ch);}
+          while (ChDef.IsNum(GetCh())){Str.AddCh(Ch);}
         }
         if ((Ch=='e')||(Ch=='E')){
           Str.AddCh(Ch); GetCh(); IntP=false;
           if ((Ch=='+')||(Ch=='-')){Str.AddCh(Ch); GetCh();}
-          while (ChDef->IsNum(Ch)){Str.AddCh(Ch); GetCh();}
+          while (ChDef.IsNum(Ch)){Str.AddCh(Ch); GetCh();}
         }
       }
       UcStr=Str;
@@ -461,7 +448,7 @@ TLxSym TILx::GetSym(const TFSet& Expect){
       GetCh();
       if ((IsCmtAlw)&&(Ch=='/')){
         TChA _CmtStr;
-        do {_CmtStr+=GetCh();} while (!ChDef->IsTerm(Ch));
+        do {_CmtStr+=GetCh();} while (!ChDef.IsTerm(Ch));
         _CmtStr.Pop(); _CmtStr.Trunc();
         if (Ch==TCh::CrCh){
           if (GetCh()==TCh::LfCh){GetCh();}
@@ -518,7 +505,7 @@ TLxSym TILx::GetSym(const TFSet& Expect){
         case '#':
           if (IsCmtAlw){
             TChA _CmtStr;
-            do {_CmtStr+=GetCh();} while (!ChDef->IsTerm(Ch));
+            do {_CmtStr+=GetCh();} while (!ChDef.IsTerm(Ch));
             _CmtStr.Pop(); _CmtStr.Trunc();
             if (Ch==TCh::CrCh){
               if (GetCh()==TCh::LfCh){GetCh();}
@@ -558,21 +545,21 @@ TLxSym TILx::GetSym(const TFSet& Expect){
 TStr TILx::GetStrToCh(const char& ToCh){
   Sym=syStr; Str.Clr(); UcStr.Clr();
   while ((Ch!=ToCh)&&(Ch!=TCh::EofCh)){
-    Str.AddCh(Ch); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh();}
+    Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh();}
   return Str;
 }
 
 TStr TILx::GetStrToEolnOrCh(const char& ToCh){
   Sym=syStr; Str.Clr(); UcStr.Clr();
   while ((Ch!=ToCh)&&(Ch!=TCh::CrCh)&&(Ch!=TCh::LfCh)&&(Ch!=TCh::EofCh)){
-    Str.AddCh(Ch); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh();}
+    Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh();}
   return Str;
 }
 
 TStr TILx::GetStrToEoln(const bool& DoTrunc){
   Sym=syStr; Str.Clr(); UcStr.Clr();
   while ((Ch!=TCh::CrCh)&&(Ch!=TCh::LfCh)&&(Ch!=TCh::EofCh)){
-    Str.AddCh(Ch); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh();}
+    Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh();}
   if (DoTrunc){Str.ToTrunc(); UcStr.ToTrunc();}
   return Str;
 }
@@ -584,7 +571,7 @@ TStr TILx::GetStrToEolnAndCh(const char& ToCh){
     if (Ch==TCh::EofCh){break;}
     if (((ChN==0)||(PrevCh==TCh::CrCh)||(PrevCh==TCh::LfCh))&&(Ch==ToCh)){
       GetCh(); break;}
-    else {Str.AddCh(Ch); UcStr.AddCh(ChDef->GetUc(Ch)); GetCh();}
+    else {Str.AddCh(Ch); UcStr.AddCh(ChDef.GetUc(Ch)); GetCh();}
   }
   return Str;
 }
@@ -759,7 +746,7 @@ void TOLx::SetOpt(const int& Opt, const bool& Val){
 
 TLxSym TOLx::AddRw(const TStr& Str){
   IAssert(RwStrH.Len()<syMxRw-syMnRw+1);
-  TStr UcStr=ChDef->GetUcStr(Str);
+  TStr UcStr=ChDef.GetUcStr(Str);
   IAssert(!RwStrH.IsKey(UcStr));
   TLxSym RwSym=TLxSym(syMnRw+RwStrH.Len());
   RwStrH.AddDat(Str, TInt(int(RwSym)));
@@ -963,4 +950,3 @@ TPreproc::TPreproc(const TStr& InFNm, const TStr& OutFNm,
     }
   }
 }
-

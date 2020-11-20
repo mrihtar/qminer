@@ -1,0 +1,398 @@
+/**
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
+ *
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+// JavaScript source code
+var qm = require('../../index.js');
+var quants = qm.analytics.quantiles;
+var fs = qm.fs;
+var assert = require("../../src/nodejs/scripts/assert.js");
+
+describe("TDigest test", function () {
+
+    describe("Constructor test", function () {
+        it("should return a default constructor", function () {
+            var tdigest = new quants.TDigest();
+            var params = tdigest.getParams();
+
+            assert.strictEqual(params.seed, 0, "invalid seed");
+            assert.strictEqual(params.clusters, 100, "invalid number of clusters");
+            assert.strictEqual(params.minEps, 1e-4, "invalid max accuracy");
+            assert.strictEqual(params.compression, "never", "invalid compression");
+            assert(tdigest.init === false); });
+        it("should construct using provided parameters", function () {
+            var tdigest = new quants.TDigest({ seed: 1, clusters: 50, minEps: 1e-5, compression: "periodic" });
+            var params = tdigest.getParams();
+
+            assert.strictEqual(params.seed, 1, "invalid seed");
+            assert.strictEqual(params.clusters, 50, "invalid number of clusters");
+            assert.strictEqual(params.minEps, 1e-5, "invalid max accuracy");
+            assert.strictEqual(params.compression, "periodic", "invalid compression");
+            assert(tdigest.init === false);
+        });
+    });
+
+    describe("Fit/quantile test", function () {
+        it("It should return a the prediction for the given fit", function () {
+            var tdigest = new quants.TDigest();
+            assert(tdigest.init === false);
+            var inputs = [10, 1, 2, 8, 9, 5, 6, 4, 7, 3];
+            for (var i = 0; i < inputs.length; i++) {
+                tdigest.insert(inputs[i]);
+                assert(tdigest.init === true);
+            }
+            var pred = tdigest.quantile(0.1);
+            // TODO test
+        });
+    });
+
+    describe('Serialization Tests', function () {
+        it('should serialize and deserialize', function () {
+            var tdigest = new quants.TDigest({ seed: 1, clusters: 50, minEps: 1e-5 });
+            tdigest.save(fs.openWrite('tdigest.bin')).close();
+            var tdigest2 = new quants.TDigest(fs.openRead('tdigest.bin'));
+            var params = tdigest2.getParams();
+            assert.strictEqual(params.seed, 1, "invalid seed");
+            assert.strictEqual(params.clusters, 50, "invalid number of clusters");
+            assert.strictEqual(params.minEps, 1e-5, "invalid max accuracy");
+            assert(tdigest.init === false);
+        })
+    });
+});
+
+describe("BufferedTDigest test", function () {
+    describe("Constructor test", function () {
+        it("should return a default constructor", function () {
+            var tdigest = new quants.BufferedTDigest();
+            var params = tdigest.getParams();
+
+            assert.strictEqual(params.seed, 0, "invalid seed");
+            assert.strictEqual(params.delta, 100, "invalid delta");
+            assert.strictEqual(params.bufferLen, 1000, "invalid buffer length: " + params.bufferLen);
+            assert(tdigest.init === false);
+        });
+        it("should construct using provided parameters", function () {
+            var tdigest = new quants.BufferedTDigest({
+                seed: 1,
+                delta: 50,
+                bufferLen: 500
+            });
+            var params = tdigest.getParams();
+
+            assert.strictEqual(params.seed, 1, "invalid seed");
+            assert.strictEqual(params.delta, 50, "invalid delta");
+            assert.strictEqual(params.bufferLen, 500, "invalid buffer length: " + params.bufferLen);
+            assert(tdigest.init === false);
+        });
+    });
+
+    describe('Serialization Tests', function () {
+        it('should serialize and deserialize', function () {
+            var tdigest = new quants.BufferedTDigest({
+                seed: 1,
+                delta: 50,
+                bufferLen: 500
+            });
+            tdigest.save(fs.openWrite('bufftdigest.bin')).close();
+            var tdigest2 = new quants.BufferedTDigest(fs.openRead('bufftdigest.bin'));
+            var params = tdigest2.getParams();
+            assert.strictEqual(params.seed, 1, "invalid seed");
+            assert.strictEqual(params.delta, 50, "invalid delta");
+            assert.strictEqual(params.bufferLen, 500, "invalid buffer length: " + params.bufferLen);
+            assert(tdigest.init === false);
+        })
+    });
+
+    describe('Testing buffer', function () {
+        it('should auto flush at correct time', function () {
+            var buffLen = 500;
+            var tdigest = new quants.BufferedTDigest({
+                seed: 1,
+                clusters: 50,
+                bufferLen: buffLen
+            });
+
+            for (var i = 0; i < buffLen-1; ++i) {
+                tdigest.insert(3 + Math.random());
+                var val = tdigest.quantile(0);
+                assert.strictEqual(val, 0);
+            }
+
+            tdigest.insert(3 + Math.random());
+            assert(tdigest.quantile(0) > 0)
+        })
+
+        it('should flush manually at correct time', function () {
+            var buffLen = 500;
+            var tdigest = new quants.BufferedTDigest({
+                seed: 1,
+                clusters: 50,
+                bufferLen: buffLen
+            });
+
+            for (var i = 0; i < 100; ++i) {
+                tdigest.insert(3 + Math.random());
+                var val = tdigest.quantile(0);
+                assert.strictEqual(val, 0);
+            }
+
+            tdigest.flush();
+            assert(tdigest.quantile(0) > 0)
+        })
+    })
+});
+
+describe('Gk test', function () {
+    describe('Constructor test', function () {
+        it('should set correct default parameters', function () {
+            var gk = new quants.Gk();
+
+            var params = gk.getParams();
+            assert(params.eps != null);
+            assert(params.autoCompress != null);
+            assert(params.useBands != null);
+
+            assert.strictEqual(params.eps, 0.01);
+            assert.strictEqual(params.autoCompress, true);
+            assert.strictEqual(params.useBands, true);
+        })
+        it('should set correct parameters', function () {
+            var gk = new quants.Gk({
+                eps: 0.1,
+                autoCompress: false,
+                useBands: false
+            })
+
+            var params = gk.getParams();
+            assert(params.eps != null);
+            assert(params.autoCompress != null);
+            assert(params.useBands != null);
+
+            assert.strictEqual(params.eps, 0.1);
+            assert.strictEqual(params.autoCompress, false);
+            assert.strictEqual(params.useBands, false);
+        })
+    })
+
+    describe('Serialization test', function () {
+        var batchSize = 1000;
+        var nbatches = 10;
+
+        var eps = .01;
+
+        var gk = new quants.Gk({
+            eps: eps
+        })
+
+        var maxRelErr = eps;
+
+        var targets = [];
+        for (var prob = 0; prob <= 1; prob += 0.001) {
+            targets.push(prob);
+        }
+
+        var vals = [];
+        for (var i = 0; i < batchSize; i++) {
+            vals.push(i);
+        }
+        for (var batchN = 0; batchN < nbatches; batchN++) {
+            // shuffle the array
+            for (var i = 0; i < batchSize; i++) {
+                var swapN = Math.floor(Math.random()*batchSize);
+                var temp = vals[i];
+                vals[i] = vals[swapN];
+                vals[swapN] = temp;
+            }
+
+            for (var i = 0; i < batchSize; i++) {
+                gk.insert(vals[i]);
+            }
+
+            var quantiles = gk.quantile(targets);
+            for (var targetN = 0; targetN < targets.length; targetN++) {
+                var prob = targets[targetN];
+                var quant = gk.quantile(prob);
+                assert.strictEqual(quant, quantiles[targetN]);
+                assert(Math.floor((prob - maxRelErr)*batchSize) <= quant);
+                assert(Math.ceil((prob + maxRelErr)*batchSize) >= quant);
+            }
+        }
+
+        gk.save(qm.fs.openWrite('gk-orig.dat')).close();
+        var gk1 = new quants.Gk(qm.fs.openRead('gk-orig.dat'));
+
+        for (var cumProb = 0; cumProb <= 1; cumProb += 0.001) {
+            var quant_hat = gk1.quantile(cumProb);
+            assert(Math.floor((cumProb - maxRelErr)*batchSize) <= quant_hat);
+            assert(Math.ceil((cumProb + maxRelErr)*batchSize) >= quant_hat);
+        }
+    })
+
+
+    describe('CDF test', function () {
+        var gk = new quants.Gk({
+            eps: 0.01
+        });
+        for (var i = 0; i < 100; i++) {
+            gk.insert(Math.floor(Math.random()*100));
+        }
+
+        it('values should be bounded between 0 and 1', function () {
+            assert.strictEqual(gk.cdf(100), 1);
+            assert.strictEqual(gk.cdf(-1),0);
+            assert.strictEqual(gk.cdf(1000), 1);
+        })
+
+        it('function should be non-decreasing', function () {
+            var previous = 0;
+            for (var i = 0; i <= 100; i++) {
+                assert(previous <= gk.cdf(i));
+                previous = gk.cdf(i);
+            }
+        })
+        it('check relationship with quantile function', function(){
+            pval = 0.5;
+            var quant = gk.quantile(pval);
+            assert(gk.cdf(quant) >= pval);
+        })
+    })
+})
+
+describe('BiasedGk test', function () {
+    describe('Constructor test', function () {
+        it('should set correct default parameters', function () {
+            var gk = new quants.BiasedGk();
+
+            var params = gk.getParams();
+            assert(params.eps != null);
+            assert(params.targetProb != null);
+            assert(params.compression != null);
+            assert(params.useBands != null);
+
+            assert.strictEqual(params.eps, 0.1);
+            assert.strictEqual(params.targetProb, 0.01);
+            assert.strictEqual(params.compression, "periodic");
+            assert.strictEqual(params.useBands, true);
+        })
+        it('should set correct parameters', function () {
+            var gk = new quants.BiasedGk({
+                eps: 0.05,
+                targetProb: 0.99,
+                compression: "aggressive",
+                useBands: false
+            })
+
+            var params = gk.getParams();
+            assert(params.eps != null);
+            assert(params.targetProb != null);
+            assert(params.compression != null);
+            assert(params.useBands != null);
+
+            assert.strictEqual(params.eps, 0.05);
+            assert.strictEqual(params.targetProb, 0.99);
+            assert.strictEqual(params.compression, "aggressive");
+            assert.strictEqual(params.useBands, false);
+        })
+    })
+
+    describe('Serialization test', function () {
+        var batchSize = 1000;
+        var nbatches = 10;
+
+        var eps = .1;
+        var targetProb = 0.01;
+
+        var gkLow = new quants.BiasedGk({
+            eps: eps,
+            targetProb: targetProb
+        })
+        var gkHigh = new quants.BiasedGk({
+            eps: eps,
+            targetProb: 1 - targetProb
+        })
+
+        var isErrorInRangeLow = function (prob, quant) {
+            var p = Math.max(prob, targetProb);
+            var mxRelError = p*eps;
+            var mxError = Math.ceil(mxRelError*batchSize);
+            var error = Math.abs(quant - prob*batchSize);
+            return error <= mxError + 1e-9;
+        }
+        var isErrorInRangeHigh = function (prob, quant) {
+            var p = Math.max(1 - prob, 1 - targetProb);
+            var mxRelError = p*eps;
+            var mxError = Math.ceil(mxRelError*batchSize);
+            var error = Math.abs(quant - prob*batchSize);
+            return error <= mxError + 1e-9;
+        }
+
+        var targets = [];
+        for (var prob = 0; prob <= 1; prob += 0.001) {
+            targets.push(prob);
+        }
+
+        var vals = [];
+        for (var i = 0; i < batchSize; i++) {
+            vals.push(i);
+        }
+        for (var batchN = 0; batchN < nbatches; batchN++) {
+            // shuffle the array
+            for (var i = 0; i < batchSize; i++) {
+                var swapN = Math.floor(Math.random()*batchSize);
+                var temp = vals[i];
+                vals[i] = vals[swapN];
+                vals[swapN] = temp;
+            }
+
+            for (var i = 0; i < batchSize; i++) {
+                gkLow.insert(vals[i]);
+                gkHigh.insert(vals[i]);
+            }
+
+            var quantsLow = gkLow.quantile(targets);
+            var quantsHigh = gkHigh.quantile(targets);
+
+            for (var targetN = 0; targetN < targets.length; targetN++) {
+                var prob = targets[targetN];
+
+                var quantLow = gkLow.quantile(prob);
+                var quantHigh = gkHigh.quantile(prob);
+
+                assert.strictEqual(quantLow, quantsLow[targetN]);
+                assert.strictEqual(quantHigh, quantsHigh[targetN]);
+
+                assert(isErrorInRangeLow(prob, quantLow));
+                assert(isErrorInRangeHigh(prob, quantHigh));
+            }
+        }
+
+        gkLow.save(qm.fs.openWrite('gkLow-orig.dat')).close();
+        gkHigh.save(qm.fs.openWrite('gkHigh-orig.dat')).close();
+
+        var gkLow1 = new quants.BiasedGk(qm.fs.openRead('gkLow-orig.dat'));
+        var gkHigh1 = new quants.BiasedGk(qm.fs.openRead('gkHigh-orig.dat'));
+
+        for (var cumProb = 0; cumProb <= 1; cumProb += 0.001) {
+            var quantLow = gkLow1.quantile(cumProb);
+            var quantHigh = gkHigh1.quantile(cumProb);
+
+            assert(isErrorInRangeLow(cumProb, quantLow));
+            assert(isErrorInRangeHigh(cumProb, quantHigh));
+        }
+
+        var params = gkLow1.getParams();
+        assert(params.eps != null);
+        assert(params.targetProb != null);
+        assert(params.compression != null);
+        assert(params.useBands != null);
+
+        assert.strictEqual(params.eps, 0.1);
+        assert.strictEqual(params.targetProb, 0.01);
+        assert.strictEqual(params.compression, "periodic");
+        assert.strictEqual(params.useBands, true);
+    })
+})

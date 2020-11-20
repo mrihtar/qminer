@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #include "bd.h"
@@ -50,6 +39,15 @@ public:
       Next=HashKeyDat.Next; HashCd=HashKeyDat.HashCd;
       Key=HashKeyDat.Key; Dat=HashKeyDat.Dat;}
     return *this;}
+  THashKeyDat& operator=(THashKeyDat&& HashKeyDat){
+    if (this!=&HashKeyDat){
+      Next=HashKeyDat.Next; HashCd=HashKeyDat.HashCd;
+      Key=std::move(HashKeyDat.Key); Dat=std::move(HashKeyDat.Dat);}
+    return *this;}
+
+  uint64 GetMemUsed() const {
+      return uint64(2 * sizeof(TInt)) + Key.GetMemUsed() + Dat.GetMemUsed();
+  }
 };
 #pragma pack(pop)
 
@@ -90,7 +88,7 @@ public:
   bool IsEmpty() const { return KeyDatI == NULL; }
   /// Tests whether the iterator is pointing to the past-end element.
   bool IsEnd() const { return EndI == KeyDatI; }
-  
+
   const TKey& GetKey() const {Assert((KeyDatI!=NULL)&&(KeyDatI->HashCd!=-1)); return KeyDatI->Key;}
   const TDat& GetDat() const {Assert((KeyDatI!=NULL)&&(KeyDatI->HashCd!=-1)); return KeyDatI->Dat;}
   TDat& GetDat() {Assert((KeyDatI!=NULL)&&(KeyDatI->HashCd!=-1)); return KeyDatI->Dat;}
@@ -104,6 +102,12 @@ public:
  static inline int GetPrimHashCd(const TKey& Key) { return Key.GetPrimHashCd(); }
  static inline int GetSecHashCd(const TKey& Key) { return Key.GetSecHashCd(); }
 };
+
+// forward declaration of string hash functions
+class TStrHashF_OldGLib;
+class TStrHashF_Md5;
+class TStrHashF_DJB;
+class TStrHashF_Murmur3;
 
 /////////////////////////////////////////////////
 // Hash-Table
@@ -153,6 +157,7 @@ public:
     PortV(Hash.PortV), KeyDatV(Hash.KeyDatV), AutoSizeP(Hash.AutoSizeP),
     FFreeKeyId(Hash.FFreeKeyId), FreeKeys(Hash.FreeKeys){}
   explicit THash(const int& ExpectVals, const bool& _AutoSizeP=false);
+  explicit THash(const TVec<TKeyDat<TKey, TDat> >& KeyDatV);
   explicit THash(TSIn& SIn):
     PortV(SIn), KeyDatV(SIn),
     AutoSizeP(SIn), FFreeKeyId(SIn), FreeKeys(SIn){
@@ -175,26 +180,18 @@ public:
     return *this;}
   bool operator==(const THash& Hash) const; //J: zdaj tak kot je treba
   bool operator < (const THash& Hash) const { Fail; return true; }
+  /// The [] operator takes KeyId, use GetDat() if you need value access via the key.
   const TDat& operator[](const int& KeyId) const {return GetHashKeyDat(KeyId).Dat;}
   TDat& operator[](const int& KeyId){return GetHashKeyDat(KeyId).Dat;}
   TDat& operator()(const TKey& Key){return AddDat(Key);}
-  ::TSize GetMemUsed() const {
-    // return PortV.GetMemUsed()+KeyDatV.GetMemUsed()+sizeof(bool)+2*sizeof(int);}
-      int64 MemUsed = sizeof(bool)+2*sizeof(int);
-      MemUsed += int64(PortV.Reserved()) * int64(sizeof(TInt));
-      for (int KeyDatN = 0; KeyDatN < KeyDatV.Len(); KeyDatN++) {
-          MemUsed += int64(2 * sizeof(TInt));
-          MemUsed += int64(KeyDatV[KeyDatN].Key.GetMemUsed());
-          MemUsed += int64(KeyDatV[KeyDatN].Dat.GetMemUsed());
-      }
-      return ::TSize(MemUsed);
-  }
+
+  uint64 GetMemUsed(const bool& DeepP = false) const;
 
   TIter BegI() const {
     if (Len() == 0){return TIter(KeyDatV.EndI(), KeyDatV.EndI());}
     if (IsKeyIdEqKeyN()) { return TIter(KeyDatV.BegI(), KeyDatV.EndI());}
     int FKeyId=-1;  FNextKeyId(FKeyId);
-    return TIter(KeyDatV.BegI()+FKeyId, KeyDatV.EndI()); }  
+    return TIter(KeyDatV.BegI()+FKeyId, KeyDatV.EndI()); }
   TIter begin() const { return BegI(); } // required by C++11 for each
   TIter EndI() const {return TIter(KeyDatV.EndI(), KeyDatV.EndI());}
   TIter end() const { return EndI(); } // required by C++11 for each
@@ -241,8 +238,8 @@ public:
   bool IsKey(const TKey& Key, int& KeyId) const { KeyId=GetKeyId(Key); return KeyId!=-1;}
   bool IsKeyId(const int& KeyId) const {
     return (0<=KeyId)&&(KeyId<KeyDatV.Len())&&(KeyDatV[KeyId].HashCd!=-1);}
-  const TDat& GetDat(const TKey& Key) const {return KeyDatV[GetKeyId(Key)].Dat;}
-  TDat& GetDat(const TKey& Key){return KeyDatV[GetKeyId(Key)].Dat;}
+  const TDat& GetDat(const TKey& Key) const;
+  TDat& GetDat(const TKey& Key);
 //  TKeyDatP GetKeyDat(const int& KeyId) const {
 //    TKeyDat& KeyDat=GetHashKeyDat(KeyId);
 //    return TKeyDatP(KeyDat.Key, KeyDat.Dat);}
@@ -252,6 +249,9 @@ public:
   bool IsKeyGetDat(const TKey& Key, TDat& Dat) const {int KeyId;
     if (IsKey(Key, KeyId)){Dat=GetHashKeyDat(KeyId).Dat; return true;}
     else {return false;}}
+  TDat GetDatOrDef(const TKey& Key, const TDat& DefVal) const {
+      if (IsKey(Key)) { return GetDat(Key); }
+      return DefVal;}
 
   int FFirstKeyId() const {return 0-1;}
   bool FNextKeyId(int& KeyId) const;
@@ -325,6 +325,14 @@ THash<TKey, TDat, THashFunc>::THash(const int& ExpectVals, const bool& _AutoSize
 }
 
 template<class TKey, class TDat, class THashFunc>
+THash<TKey, TDat, THashFunc>::THash(const TVec<TKeyDat<TKey, TDat> >& KeyDatV):
+  PortV(), KeyDatV(), AutoSizeP(true), FFreeKeyId(-1), FreeKeys(0)
+{
+  for (int N = 0; N < KeyDatV.Len(); N++)
+    AddDat(KeyDatV[N].Key, KeyDatV[N].Dat);
+}
+
+template<class TKey, class TDat, class THashFunc>
 bool THash<TKey, TDat, THashFunc>::operator==(const THash& Hash) const {
   if (Len() != Hash.Len()) { return false; }
   for (int i = FFirstKeyId(); FNextKeyId(i); ) {
@@ -333,6 +341,20 @@ bool THash<TKey, TDat, THashFunc>::operator==(const THash& Hash) const {
     if (GetDat(Key) != Hash.GetDat(Key)) { return false; }
   }
   return true;
+}
+
+template<class TKey, class TDat, class THashFunc>
+uint64 THash<TKey, TDat, THashFunc>::GetMemUsed(const bool& DeepP) const {
+  return sizeof(THash<TKey,TDat,THashFunc>) +
+         TMemUtils::GetExtraContainerSizeShallow(PortV) +
+         (DeepP ? TMemUtils::GetExtraMemberSize(KeyDatV) : TMemUtils::GetExtraContainerSizeShallow(KeyDatV)) +
+         TMemUtils::GetExtraMemberSize(AutoSizeP) +
+         TMemUtils::GetExtraMemberSize(FFreeKeyId) +
+         TMemUtils::GetExtraMemberSize(FreeKeys);
+  /* uint64 MemUsed = sizeof(TBool) + 2 * sizeof(TInt); */
+  /* MemUsed += PortV.GetMemUsed(); */
+  /* MemUsed += KeyDatV.GetMemUsed(DeepP); */
+  /* return uint64(MemUsed); */
 }
 
 template<class TKey, class TDat, class THashFunc>
@@ -390,8 +412,8 @@ void THash<TKey, TDat, THashFunc>::DelKey(const TKey& Key){
    !((KeyDatV[KeyId].HashCd==HashCd) && (KeyDatV[KeyId].Key==Key))){
     PrevKeyId=KeyId; KeyId=KeyDatV[KeyId].Next;}
 
-  //IAssertR(KeyId!=-1, Key.GetStr()); //J: vsi razredi nimajo nujno funkcije GetStr()?
-  IAssert(KeyId!=-1); //J: vsi razredi nimajo nujno funkcije GetStr()?
+  //IAssertR(KeyId!=-1, Key.GetStr()); //J: some classes do not provide GetStr()?
+  IAssert(KeyId!=-1); //J: some classes do not provide GetStr()?
   if (PrevKeyId==-1){PortV[PortN]=KeyDatV[KeyId].Next;}
   else {KeyDatV[PrevKeyId].Next=KeyDatV[KeyId].Next;}
   KeyDatV[KeyId].Next=FFreeKeyId; FFreeKeyId=KeyId; FreeKeys++;
@@ -402,7 +424,7 @@ void THash<TKey, TDat, THashFunc>::DelKey(const TKey& Key){
 
 template<class TKey, class TDat, class THashFunc>
 void THash<TKey, TDat, THashFunc>::MarkDelKey(const TKey& Key){
-  // MarkDelKey is same as Delkey expect last two lines
+  // MarkDelKey is same as Delkey except last two lines
   IAssert(!PortV.Empty());
   const int PortN=abs(THashFunc::GetPrimHashCd(Key)%PortV.Len());
   const int HashCd=abs(THashFunc::GetSecHashCd(Key));
@@ -424,7 +446,7 @@ int THash<TKey, TDat, THashFunc>::GetRndKeyId(TRnd& Rnd) const  {
   int KeyId = abs(Rnd.GetUniDevInt(KeyDatV.Len()));
   while (KeyDatV[KeyId].HashCd == -1) { // if the index is empty, just try again
     KeyId = abs(Rnd.GetUniDevInt(KeyDatV.Len())); }
-  return KeyId; 
+  return KeyId;
 }
 
 // return random KeyId even if the hash table contains deleted keys
@@ -464,6 +486,22 @@ void THash<TKey, TDat, THashFunc>::GetKeyV(TVec<TKey>& KeyV) const {
   int KeyId=FFirstKeyId();
   while (FNextKeyId(KeyId)){
     KeyV.Add(GetKey(KeyId));}
+}
+
+template<class TKey, class TDat, class THashFunc>
+TDat& THash<TKey, TDat, THashFunc>::GetDat(const TKey& Key) {
+    int KeyId = GetKeyId(Key);
+    // in case key is not found, ensure we don't try to access the data
+    EAssertR(KeyId >= 0, "Specified key does not exist");
+    return KeyDatV[KeyId].Dat;
+}
+
+template<class TKey, class TDat, class THashFunc>
+const TDat& THash<TKey, TDat, THashFunc>::GetDat(const TKey& Key) const {
+  int KeyId = GetKeyId(Key);
+  // in case key is not found, ensure we don't try to access the data
+  EAssertR(KeyId >= 0, "Specified key does not exist");
+  return KeyDatV[KeyId].Dat;
 }
 
 template<class TKey, class TDat, class THashFunc>
@@ -713,14 +751,14 @@ public:
   int AddStr(const TStr& Str) { return AddStr(Str.CStr(), Str.Len() + 1); }
 
   TStr GetStr(const int& StrId) const { Assert(StrId < GetStrs());
-    if (StrId == 0) return TStr::GetNullStr(); else return TStr(Bf + (TSize)IdOffV[StrId]); }
+    if (StrId == 0) return TStr(); else return TStr(Bf + (TSize)IdOffV[StrId]); }
   const char *GetCStr(const int& StrId) const { Assert(StrId < GetStrs());
-    if (StrId == 0) return TStr::GetNullStr().CStr(); else return (Bf + (TSize)IdOffV[StrId]); }
-  
+    if (StrId == 0) return TStr().CStr(); else return (Bf + (TSize)IdOffV[StrId]); }
+
   TStr GetStrFromOffset(const TSize& Offset) const { Assert(Offset < BfL);
-    if (Offset == 0) return TStr::GetNullStr(); else return TStr(Bf + Offset); }
+    if (Offset == 0) return TStr(); else return TStr(Bf + Offset); }
   const char *GetCStrFromOffset(const TSize& Offset) const { Assert(Offset < BfL);
-    if (Offset == 0) return TStr::GetNullStr().CStr(); else return Bf + Offset; }
+    if (Offset == 0) return TStr().CStr(); else return Bf + Offset; }
 
   void Clr(bool DoDel = false) { BfL = 0; if (DoDel && Bf) { free(Bf); Bf = 0; MxBfL = 0; } }
   int Cmp(const int& StrId, const char *Str) const { Assert(StrId < GetStrs());
@@ -736,7 +774,7 @@ public:
 
 /////////////////////////////////////////////////
 // String-Hash-Table
-template <class TDat, class TStringPool = TStrPool, class THashFunc = TDefaultHashFunc<TStr> >
+template <class TDat, class TStringPool = TStrPool, class THashFunc = TStrHashF_DJB >
 class TStrHash{
 private:
   //typedef typename PStringPool::TObj TStringPool;
@@ -776,6 +814,7 @@ public:
 
   TStrHash& operator = (const TStrHash& Hash);
 
+  void Clr() { PortV.Clr(); KeyDatV.Clr(); FFreeKeyId = -1; FreeKeys = 0; if (!Pool.Empty()) Pool->Clr(); }
   bool Empty() const {return ! Len(); }
   int Len() const { return KeyDatV.Len() - FreeKeys; }
   int Reserved() const { return KeyDatV.Reserved(); }
@@ -839,6 +878,13 @@ public:
   void GetDatKeyPrV(TVec<TPair<TDat, TStr> >& DatKeyPrV) const;
 
   void Pack(){KeyDatV.Pack();}
+  uint64 GetMemUsed(const bool& DeepP = true) const {
+      return TMemUtils::GetExtraContainerSizeShallow(PortV) +
+          (DeepP ? TMemUtils::GetExtraMemberSize(KeyDatV) : TMemUtils::GetExtraContainerSizeShallow(KeyDatV)) +
+          TMemUtils::GetExtraMemberSize(AutoSizeP) +
+          TMemUtils::GetExtraMemberSize(FFreeKeyId) +
+          TMemUtils::GetExtraMemberSize(FreeKeys) + TMemUtils::GetExtraMemberSize(Pool);
+  }
 };
 
 template <class TDat, class TStringPool, class THashFunc>
@@ -985,41 +1031,324 @@ typedef TStrHash<TInt> TStrSH;
 typedef TStrHash<TInt> TStrIntSH;
 typedef TStrHash<TIntV> TStrToIntVSH;
 
+
+/////////////////////////////////////////////////
+// Trie
+
+// TTrie behaves like a hash table where the KeyV is a sequence of symbols (of type TSym).
+// Each KeyV is associated with one TDat value.
+// Keys can be added but not removed (except by clearing the whole trie).
+// - AddDat adds a KeyV with the given TDat; if the KeyV already exists, its TDat is
+//   overwritten by the new one.  This is exactly the same behaviour as in THash.
+// - AddIfNew adds the KeyV (with the given TDat) only if it is new; if the KeyV
+//   already exists, the trie is not modified.
+// Searching by Prefix is also supported and returns the DatV of all the keys that
+// begin with a given Prefix.  The trie does not guarantee that the DatV are
+// returned in any particular order (in the current implementation, more recently 
+// addes sub-branches of the tree are traversed First).
+// - SearchByPrefixEx allows you to pass a callable object that gets called with each
+//   matching TDat; it should return 'true' to continue searching or 'false' to stop.
+// - SearchByPrefix returns the matching TDat's in a vector.
+// For all these functions, the KeyV (when adding) or Prefix (when searching) 
+// can be provided as:
+// - a pair of iterators 'First' and 'Last', such that the KeyV is [First, Last);
+// - a TVec<T> or std::initializer_list<T> - if a TSym can be initialized from a T;
+// - a TStr, TChA, or const char * - if a TSym can be initialized from a char.
+//
+// Examples:
+//    TTrie<TCh, TInt> trie;
+//    trie.AddDat("ena", 111);
+//    TStr s = "dve"; trie.AddDat(s, 222);
+//    TChA c = "tri"; trie.AddDat(c, 333);
+//    const char *p = "devet"; trie.AddDat(p, 999);
+//    TIntV results; trie.SearchByPrefix("d", results);
+//    for (int i : results) printf("%d\n", i);  // prints 222 and 999
+//    trie.SearchByPrefix("en", results);
+//    for (int i : results) printf("%d\n", i);  // prints 111
+//
+//    TTrie<TInt, TStr> trie2;
+//    trie2.AddDat({2, 3, 5, 7, 11}, "primes");
+//    trie2.AddDat({2, 4, 6}, "even");
+//    trie2.AddDat({4, 9, 16, 25}, "squares");
+//    trie2.AddDat({2, 3, 5, 8, 13, 21}, "fib");
+//    TIntV Prefix; Prefix.Add(2); Prefix.Add(3); 
+//    TStrV results2; trie2.SearchByPrefix(Prefix, results2);
+//    for (const TStr& s2: results2) printf("%s\n", s2.CStr()); // prints 'primes' and 'fib'
+
+template <typename TSym_, typename TDat_>
+class TTrie
+{
+public:
+    typedef TDat_ TDat;
+    typedef TSym_ TSym;
+    typedef int TNodeId;
+    typedef TNodeId TDatIdx;
+    typedef TVec<TSym> TSymV;
+protected:
+    // Make sure that we have boxed varsions of TNodeId and TDatIdx for use
+    // in hash table keys etc., and an unboxed version of TDatIdx for use
+    // as the index type in TDatVec.
+    template <typename I> struct TBox { typedef TNum<I> B; };
+    template <typename I> struct TBox<TNum<I>> { typedef TNum<I> B; };
+    typedef typename TBox<TNodeId>::B TNodeIdB;
+    typedef typename TBox<TDatIdx>::B TDatIdxB;
+    template <typename I> struct TUnBox { typedef I U; };
+    template <typename I> struct TUnBox<TNum<I>> { typedef I U; };
+    typedef typename TUnBox<TDatIdx>::U TDatIdxU;
+    struct TNode
+    {
+        // If one of the keys ends at this Node, 'DatV[DatIdx]' is its corresponding Dat.
+        // Otherwise, 'DatIdx' will be -1.
+        TDatIdxB DatIdx;
+        // FirstChild and NextSib are used to form linked lists of sibling nodes.
+        TNodeIdB FirstChild, NextSib;
+        TNode() : DatIdx(-1), FirstChild(-1), NextSib(-1) { }
+        explicit TNode(TSIn& SIn) { DatIdx.Load(SIn); FirstChild.Load(SIn); NextSib.Load(SIn); }
+        void Save(TSOut& SOut) const { DatIdx.Save(SOut); FirstChild.Save(SOut); NextSib.Save(SOut); }
+    };
+    typedef TPair<TNodeIdB, TSym> TNodeIdSymPr; // (parent Node ID, label on the outgoing link)
+    typedef THash<TNodeIdSymPr, TNode> TTrieHash;
+    typedef TVec<TDat, TDatIdxU> TDatVec;
+    TTrieHash TrieH; // KeyId: TNodeId
+    TDatVec DatV; // index: TDatIdx
+    TNodeId Root; // should be 0
+    // The following Begin/End functions are used by AddDat, AddIfNew, SearchByPrefix[Ex]
+    // to convert a TKey into a pair of iterators.  Why don't we simply use begin(KeyV) and
+    // end(KeyV) in every case?  Because then someone would call AddDat("foo", someDat)
+    // and be unpleasantly surprised to discover that his KeyV is a sequence of 
+    // 4 characters, {'F', 'o', 'o', '\0'}, rather than a sequence of 3 characters.
+    struct TKeyAccess
+    {
+        template<typename T> inline static T* Begin(const TVec<T>& KeyV) { return KeyV.begin(); }
+        inline static const char* Begin(const TStr& Key) { return Key.begin(); }
+        inline static const char* Begin(const TChA& Key) { return Key.Empty() ? nullptr : Key.CStr(); }
+        inline static const char* Begin(const char *Key) { return Key; }
+        inline static TSym* End(const TSymV& Key) { return Key.end(); }
+        template<typename T> inline static T* End(const TVec<T>& Key) { return Key.end(); }
+        inline static const char* End(const TStr& Key) { return Key.end(); }
+        inline static const char* End(const TChA& Key) { return Key.Empty() ? nullptr : Key.CStr() + Key.Len(); }
+        inline static const char* End(const char *Key) { if (Key) while (*Key) ++Key; return Key; }
+    };
+public:
+    void Clr() { TrieH.Clr(); DatV.Clr(); Root = TrieH.AddKey({ -1, TSym{} }); TrieH[Root] = {}; }
+    TTrie() { Clr(); }
+    void Save(TSOut& SOut) const { TrieH.Save(SOut); DatV.Save(SOut); SOut.Save(Root); SOut.SaveCs(); }
+    void Load(TSIn& SIn) { TrieH.Load(SIn); DatV.Load(SIn); SIn.Load(Root); SIn.LoadCs(); }
+    explicit TTrie(TSIn& SIn) { Load(SIn); }
+    bool Empty() const { return DatV.Empty(); }
+    TDatIdx Len() const { return DatV.Len(); }
+    TNodeId Nodes() const { return TrieH.Len(); }
+protected:
+    template<typename TIt> TNodeId GetKeyId(TIt First, TIt Last) const;
+    template<typename TIt> TNodeId AddKey(TIt First, TIt Last);
+public:
+    // Returns 'true' iff the sequence [First..Last) is present and associated with a 'Dat' 
+    // (as opposed to e.g. just being present in the trie because it happens to be a Prefix of some longer KeyV).
+    template<typename TIt> bool IsKey(TIt First, TIt Last) const {
+        auto KeyId = GetKeyId(First, Last); return KeyId >= 0 && TrieH[KeyId].DatIdx >= 0;
+    }
+    // If the KeyV is new, AddDat adds it, otherwise it overwrites its existing TDat.
+    // It also returns a reference to the TDat (in 'DatV').  
+    // In other words, this works just like THash::AddKey.
+    template<typename TIt> TDat& AddDat(TIt First, TIt Last, const TDat& Dat) {
+        auto &Node = TrieH[AddKey(First, Last)];
+        if (Node.DatIdx < 0) {
+            Node.DatIdx = DatV.Len();
+            DatV.Add(Dat);
+            return DatV.Last();
+        }
+        else {
+            TDat &R = DatV[Node.DatIdx];
+            R = Dat;
+            return R;
+        }
+    }
+    template<typename TKey> TDat& AddDat(const TKey &Key, const TDat& Dat) { return AddDat(TKeyAccess::Begin(Key), TKeyAccess::End(Key), Dat); }
+    template<typename T> TDat& AddDat(const std::initializer_list<T> &KeyV, const TDat& Dat) { return AddDat(KeyV.begin(), KeyV.end(), Dat); }
+    // If the KeyV is new, AddIfNew function adds it and returns true; 
+    // otherwise it returns false and does not change anything.
+    template<typename TIt> bool AddIfNew(TIt First, TIt Last, const TDat& Dat) {
+        auto &Node = TrieH[AddKey(First, Last)];
+        if (Node.DatIdx >= 0) {
+            return false;
+        }
+        Node.DatIdx = DatV.Len();
+        DatV.Add(Dat);
+        return true;
+    }
+    template<typename TKey> bool AddIfNew(const TKey& Key, const TDat& Dat) { using std::begin; using std::end; return AddIfNew(begin(Key), end(Key), Dat); }
+protected:
+    // Traverses all the nodes in the subtree rooted by 'NodeId', 
+    // calling 'Sink(Dat)' for each of them that has an associated TDat.
+    // The Sink should return 'false' to interrupt the traversal, 'true' to continue.
+    // TraverseSubtree returns 'false' if it was interrupted by the Sink, 'true' otherwise.
+    template<typename TSink> bool TraverseSubtree(TNodeId NodeId, TSink&& Sink) const;
+public:
+    // SearchByPrefixEx() searches for items whose KeyV begins with 'Prefix'; for each of
+    // them, it calls 'Sink(Dat)' with the corresponding TDat.
+    // If the Sink returns false, the search stops immediately, otherwise it continues.
+    // SearchByPrefixEx() returns the number of calls made to the Sink.
+    template<typename TIt, typename TSink> void SearchByPrefixEx(TIt PrefixFirst, TIt PrefixLast, TSink&& Sink) const {
+        TNodeId NodeId = GetKeyId(PrefixFirst, PrefixLast);
+        if (NodeId >= 0) {
+            TraverseSubtree(NodeId, Sink);
+        }
+    }
+    template<typename TKey, typename TSink> void SearchByPrefixEx(const TKey& Prefix, TSink&& Sink) const { SearchByPrefixEx(TKeyAccess::Begin(Prefix), TKeyAccess::End(Prefix), Sink); }
+    template<typename T, typename TSink> void SearchByPrefixEx(const std::initializer_list<T> &Prefix, TSink&& Sink) const { SearchByPrefixEx(Prefix.Begin(), Prefix.End(), Sink); }
+    // SearchByPrefix() adds, to 'DestV', all the TDat's whose KeyV starts with 'Prefix'.  
+    // If MaxResults >= 0, at most MaxResults DatV are added and others are ignored.  
+    // SearchByPrefix() returns the number of elements added to 'DestV'.
+    template<typename TIt> int SearchByPrefix(TIt PrefixFirst, TIt PrefixLast, TDatVec& DestV, int MaxResults = -1, bool ClrDest = true) const;
+    template<typename TKey> int SearchByPrefix(const TKey& Prefix, TDatVec& DestV, int MaxResults = -1, bool ClrDest = true) const { return SearchByPrefix(TKeyAccess::Begin(Prefix), TKeyAccess::End(Prefix), DestV, MaxResults, ClrDest); }
+    template<typename T> int SearchByPrefix(const std::initializer_list<T>& Prefix, TDatVec& DestV, int MaxResults = -1, bool ClrDest = true) const { return SearchByPrefix(Prefix.begin(), Prefix.end(), DestV, MaxResults, ClrDest); }
+    // Dump() prints the contents of the trie to 'F'.  The writers must support calls
+    // of the form 'SymWriter(FILE *, TSym)' and 'DatWriter(FILE *, TDat).
+    template<typename TSymWriter, typename TDatWriter> void Dump(FILE *F, TSymWriter&& SymWriter, TDatWriter&& DatWriter) const;
+};
+
+template <typename TSym_, typename TDat_>
+template<typename TSymWriter, typename TDatWriter>
+void  TTrie<TSym_, TDat_>::Dump(FILE *F, TSymWriter&& SymWriter, TDatWriter&& DatWriter) const
+{
+    if (!F) {
+        F = stdout;
+    }
+    typedef long long ll;
+    //typename TUnBox<TInt>::U x1; typename TUnBox<int>::U x2; typename TBox<TInt>::B x3; typename TBox<int>::B x4;
+    fprintf(F, "TTrie: %lld nodes, %lld DatV\n", ll(TrieH.Len()), ll(DatV.Len()));
+    for (TNodeId nodeId = TrieH.FFirstKeyId(); TrieH.FNextKeyId(nodeId); )
+    {
+        const auto &pr = TrieH.GetKey(nodeId); const auto &node = TrieH[nodeId];
+        fprintf(F, "- (parent %lld + label ", ll(pr.Val1)); SymWriter(F, pr.Val2);
+        fprintf(F, ") -> Node %lld, firstChld %lld, NextSib %lld, DatIdx %lld", ll(nodeId), ll(node.FirstChild), ll(node.NextSib), ll(node.DatIdx));
+        if (node.DatIdx >= 0) {
+            fprintf(F, " ");
+            DatWriter(F, DatV[node.DatIdx]);
+        }
+        fprintf(F, "\n");
+    }
+}
+
+template <typename TSym_, typename TDat_>
+template <typename TIt>
+typename TTrie<TSym_, TDat_>::TNodeId TTrie<TSym_, TDat_>::AddKey(TIt First, TIt Last)
+{
+    TNodeId NodeId = Root;
+    for (; First != Last; ++First)
+    {
+        TNodeIdSymPr NextPr{ NodeId, *First };
+        TNodeId ChildId = TrieH.GetKeyId(NextPr);
+        if (ChildId < 0) {
+            ChildId = TrieH.AddKey(NextPr);
+            TNode &Child = TrieH[ChildId], &Node = TrieH[NodeId];
+            Child.NextSib = Node.FirstChild; Node.FirstChild = ChildId;
+        }
+        NodeId = ChildId;
+    }
+    return NodeId;
+}
+
+template <typename TSym_, typename TDat_>
+template <typename TIt>
+typename TTrie<TSym_, TDat_>::TNodeId TTrie<TSym_, TDat_>::GetKeyId(TIt First, TIt Last) const
+{
+    TNodeId NodeId = Root; if (NodeId < 0) return NodeId;
+    for (; First != Last; ++First)
+    {
+        NodeId = TrieH.GetKeyId({ NodeId, *First });
+        if (NodeId < 0) {
+            break;
+        }
+    }
+    return NodeId;
+}
+
+template <typename TSym_, typename TDat_>
+template <typename TSink>
+bool TTrie<TSym_, TDat_>::TraverseSubtree(TNodeId NodeId, TSink&& Sink) const
+{
+    if (NodeId < 0) {
+        return true;
+    }
+    const TNode &Node = TrieH[NodeId]; if (Node.DatIdx >= 0) {
+        if (!Sink(DatV[Node.DatIdx])) {
+            return false;
+        }
+    }
+    for (TNodeId ChildId = Node.FirstChild; ChildId >= 0; ChildId = TrieH[ChildId].NextSib) {
+        if (!TraverseSubtree(ChildId, Sink)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <typename TSym_, typename TDat_>
+template <typename TIt>
+int TTrie<TSym_, TDat_>::SearchByPrefix(TIt PrefixFirst, TIt PrefixLast, TDatVec& Dest, int MaxResults, bool ClrDest) const
+{
+    if (ClrDest) {
+        Dest.Clr();
+    }
+    if (MaxResults == 0) {
+        return 0;
+    }
+    int NAdded = 0;
+    SearchByPrefixEx(PrefixFirst, PrefixLast, [&Dest, &NAdded, MaxResults](const TDat& dat) {
+        Dest.Add(dat);
+        NAdded++;
+        return MaxResults < 0 || NAdded < MaxResults;
+        });
+    return NAdded;
+}
+
+
 /////////////////////////////////////////////////
 // Cache
 template <class TKey, class TDat, class THashFunc = TDefaultHashFunc<TKey> >
-class TCache{
-private:
-  typedef TLst<TKey> TKeyL; typedef TLstNd<TKey>* TKeyLN;
-  typedef TPair<TKeyLN, TDat> TKeyLNDatPr;
-  int64 MxMemUsed;
-  int64 CurMemUsed;
-  THash<TKey, TKeyLNDatPr, THashFunc> KeyDatH;
-  TKeyL TimeKeyL;
-  void* RefToBs;
-  void Purge(const int64& MemToPurge);
+class TCache {
 public:
-  TCache(){}
-  TCache(const TCache&);
-  TCache(const int64& _MxMemUsed, const int& Ports, void* _RefToBs):
-    MxMemUsed(_MxMemUsed), CurMemUsed(0),
-    KeyDatH(/*Ports*/), TimeKeyL(), RefToBs(_RefToBs){}
+    typedef TLstNd<TKey>* TKeyLN;
+private:
+    typedef TLst<TKey> TKeyL;
+    typedef TPair<TKeyLN, TDat> TKeyLNDatPr;
+    int64 MxMemUsed;
+    int64 CurMemUsed;
+    THash<TKey, TKeyLNDatPr, THashFunc> KeyDatH;
+    TKeyL TimeKeyL;
+    void* RefToBs;
+    void Purge(const int64& MemToPurge);
+public:
+    TCache() {}
+    TCache(const TCache&);
+    TCache(const int64& _MxMemUsed, const int& Ports, void* _RefToBs) :
+        MxMemUsed(_MxMemUsed), CurMemUsed(0),
+        KeyDatH(/*Ports*/), TimeKeyL(), RefToBs(_RefToBs) {}
 
-  TCache& operator=(const TCache&);
-  int64 GetMemUsed() const;
-  int64 GetMxMemUsed() const { return MxMemUsed; }
-  bool RefreshMemUsed();
+    TCache& operator=(const TCache&);
+    int64 GetMemUsed() const;
+    int64 GetMxMemUsed() const { return MxMemUsed; }
+    bool RefreshMemUsed();
 
-  void Put(const TKey& Key, const TDat& Dat);
-  bool Get(const TKey& Key, TDat& Dat);
-  void Del(const TKey& Key, const bool& DoEventCall=true);
-  void Flush();
-  void FlushAndClr();
-  void* FFirstKeyDat();
-  bool FNextKeyDat(void*& KeyDatP, TKey& Key, TDat& Dat);
+    void Put(const TKey& Key, const TDat& Dat);
+    bool Get(const TKey& Key, TDat& Dat);
+    void Del(const TKey& Key, const bool& DoEventCall = true);
+    void ChangeKey(const TKey& OldKey, const TKey& NewKey);
+    bool IsKey(const TKey& Key) { return KeyDatH.IsKey(Key); }
+    int Len() const { return KeyDatH.Len(); }
+    void Flush();
+    void FlushAndClr();
+    void* FFirstKeyDat();
+    bool FNextKeyDat(void*& KeyDatP, TKey& Key, TDat& Dat);
+    void* FLastKeyDat();
+    bool FPrevKeyDat(void*& KeyDatP, TKey& Key, TDat& Dat);
 
-  void PutRefToBs(void* _RefToBs){RefToBs=_RefToBs;}
-  void* GetRefToBs(){return RefToBs;}
+    TKeyLN First() const { return TimeKeyL.First(); }
+    TKeyLN Last() const { return TimeKeyL.Last(); }
+
+    void PutRefToBs(void* _RefToBs) { RefToBs = _RefToBs; }
+    void* GetRefToBs() { return RefToBs; }
 };
 
 template <class TKey, class TDat, class THashFunc>
@@ -1033,15 +1362,26 @@ void TCache<TKey, TDat, THashFunc>::Purge(const int64& MemToPurge){
 
 template <class TKey, class TDat, class THashFunc>
 int64 TCache<TKey, TDat, THashFunc>::GetMemUsed() const {
-  int64 MemUsed=0;
-  int KeyId=KeyDatH.FFirstKeyId();
-  while (KeyDatH.FNextKeyId(KeyId)){
-    const TKey& Key=KeyDatH.GetKey(KeyId);
-    const TKeyLNDatPr& KeyLNDatPr=KeyDatH[KeyId];
-    TDat Dat=KeyLNDatPr.Val2;
-    MemUsed+=int64(Key.GetMemUsed()+Dat->GetMemUsed());
-  }
-  return MemUsed;
+    return sizeof(TCache) +
+           TMemUtils::GetExtraMemberSize(MxMemUsed) +
+           TMemUtils::GetExtraMemberSize(CurMemUsed) +
+           TMemUtils::GetExtraMemberSize(KeyDatH) +
+           TMemUtils::GetExtraMemberSize(TimeKeyL);
+    /* int64 MemUsed = 2 * sizeof(int64); */
+
+    /* MemUsed += KeyDatH.GetMemUsed(false); */
+    /* MemUsed += TimeKeyL.GetMemUsed(); */
+    /* int cnt = 0; */
+    /* int KeyId = KeyDatH.FFirstKeyId(); */
+    /* while (KeyDatH.FNextKeyId(KeyId)) { */
+    /*     const TKeyLNDatPr& KeyLNDatPr = KeyDatH[KeyId]; */
+    /*     TDat Dat = KeyLNDatPr.Val2; */
+    /*     MemUsed += int64(Dat->GetMemUsed()); */
+    /*     cnt++; */
+    /* } */
+    /* EAssert(cnt == KeyDatH.Len()); */
+
+    /* return MemUsed; */
 }
 
 template <class TKey, class TDat, class THashFunc>
@@ -1073,6 +1413,19 @@ void TCache<TKey, TDat, THashFunc>::Put(const TKey& Key, const TDat& Dat){
 }
 
 template <class TKey, class TDat, class THashFunc>
+void TCache<TKey, TDat, THashFunc>::ChangeKey(const TKey& OldKey, const TKey& NewKey) {
+    if (OldKey == NewKey)
+        return;
+    int OldKeyId = KeyDatH.GetKeyId(OldKey);
+    EAssertR(OldKeyId != -1, "OldKeyId should be a valid key");
+
+    TKeyLNDatPr KeyLNDatPr = KeyDatH[OldKeyId];
+    KeyLNDatPr.Val1->GetVal() = NewKey; // update data inside linked-list node
+    KeyDatH.AddDat(NewKey, KeyLNDatPr); // store the same data pair under new key
+    KeyDatH.DelKeyId(OldKeyId);
+}
+
+template <class TKey, class TDat, class THashFunc>
 bool TCache<TKey, TDat, THashFunc>::Get(const TKey& Key, TDat& Dat){
   int KeyId=KeyDatH.GetKeyId(Key);
   if (KeyId==-1){
@@ -1101,17 +1454,22 @@ void TCache<TKey, TDat, THashFunc>::Del(const TKey& Key, const bool& DoEventCall
 
 template <class TKey, class TDat, class THashFunc>
 void TCache<TKey, TDat, THashFunc>::Flush(){
-  printf("Flush: 0/%d\r", KeyDatH.Len());
+  if (MxMemUsed > (int64)TInt::Giga) { printf("Flush: 0/%d\r", KeyDatH.Len()); }
   int KeyId=KeyDatH.FFirstKeyId(); int Done = 0;
   while (KeyDatH.FNextKeyId(KeyId)){
-    if (Done%10000==0){printf("Flush: %d/%d\r", Done, KeyDatH.Len());}
+    if (Done%10000==0){
+        double Perc = Done / (0.01 * (double) KeyDatH.Len());
+        if (MxMemUsed > (int64)TInt::Giga) {
+            printf("Flush: %d/%d (%.1f%%)\r", Done, KeyDatH.Len(), Perc);
+        }
+    }
     const TKey& Key=KeyDatH.GetKey(KeyId);
     TKeyLNDatPr& KeyLNDatPr=KeyDatH[KeyId];
     TDat Dat=KeyLNDatPr.Val2;
     Dat->OnDelFromCache(Key, RefToBs);
     Done++;
   }
-  printf("Flush: %d/%d\r", KeyDatH.Len(), KeyDatH.Len());
+  if (MxMemUsed > (int64)TInt::Giga) { printf("Flush: %d/%d. Finished flushing.\n", KeyDatH.Len(), KeyDatH.Len()); }
 }
 
 template <class TKey, class TDat, class THashFunc>
@@ -1126,6 +1484,10 @@ template <class TKey, class TDat, class THashFunc>
 void* TCache<TKey, TDat, THashFunc>::FFirstKeyDat(){
   return TimeKeyL.First();
 }
+template <class TKey, class TDat, class THashFunc>
+void* TCache<TKey, TDat, THashFunc>::FLastKeyDat() {
+    return TimeKeyL.Last();
+}
 
 template <class TKey, class TDat, class THashFunc>
 bool TCache<TKey, TDat, THashFunc>::FNextKeyDat(void*& KeyDatP, TKey& Key, TDat& Dat){
@@ -1137,8 +1499,18 @@ bool TCache<TKey, TDat, THashFunc>::FNextKeyDat(void*& KeyDatP, TKey& Key, TDat&
   }
 }
 
+template <class TKey, class TDat, class THashFunc>
+bool TCache<TKey, TDat, THashFunc>::FPrevKeyDat(void*& KeyDatP, TKey& Key, TDat& Dat) {
+    if (KeyDatP == NULL) {
+        return false;
+    } else {
+        Key = TKeyLN(KeyDatP)->GetVal(); Dat = KeyDatH.GetDat(Key).Val2;
+        KeyDatP = TKeyLN(KeyDatP)->Prev(); return true;
+    }
+}
+
 /////////////////////////////////////////////////
-// String-Hash-Functions
+// Old-Hash-Functions
 
 // Old-String-Hash-Function
 class TStrHashF_OldGLib {
@@ -1182,6 +1554,68 @@ public:
   inline static int GetSecHashCd(const char *p) {
     const char *r = p;  while (*r) { r++; }
     return (int) DJBHash((const char *) p, r - p) & 0x7fffffff; }
+  inline static int GetPrimHashCd(const TStr& s) { return GetPrimHashCd(s.CStr()); }
+  inline static int GetSecHashCd(const TStr& s) { return GetSecHashCd(s.CStr()); }
+};
+
+// Murmur3-Hash-Function - 32bit version. Original by Austin Appleby
+class TStrHashF_Murmur3 {
+private:
+  inline static uint32_t rotl32 ( uint32_t x, int8_t r ) { return (x << r) | (x >> (32 - r)); }
+  inline static uint32_t getblock32 ( const uint32_t * p, int i ) { return p[i]; }
+  inline static uint32_t fmix32 ( uint32_t h ) { h ^= h >> 16; h *= 0x85ebca6b; h ^= h >> 13; h *= 0xc2b2ae35; h ^= h >> 16; return h; };
+  inline static uint32_t MurmurHash3(const void * key, int len, uint32_t seed=1) {
+      const uint8_t * data = (const uint8_t*)key;
+      const int nblocks = len / 4;
+
+      uint32_t h1 = seed;
+      const uint32_t c1 = 0xcc9e2d51;
+      const uint32_t c2 = 0x1b873593;
+
+      const uint32_t * blocks = (const uint32_t *)(data + nblocks*4);
+
+      for(int i = -nblocks; i; i++)
+      {
+        uint32_t k1 = TStrHashF_Murmur3::getblock32(blocks,i);
+
+        k1 *= c1;
+        k1 = TStrHashF_Murmur3::rotl32(k1,15);
+        k1 *= c2;
+
+        h1 ^= k1;
+        h1 = TStrHashF_Murmur3::rotl32(h1,13);
+        h1 = h1*5+0xe6546b64;
+      }
+
+      const uint8_t * tail = (const uint8_t*)(data + nblocks*4);
+
+      uint32_t k1 = 0;
+
+      switch(len & 3)
+      {
+      case 3: k1 ^= tail[2] << 16;
+      case 2: k1 ^= tail[1] << 8;
+      case 1: k1 ^= tail[0];
+              k1 *= c1; k1 = TStrHashF_Murmur3::rotl32(k1,15); k1 *= c2; h1 ^= k1;
+      };
+
+      h1 ^= len;
+
+      return fmix32(h1);
+  }
+public:
+  inline static int GetPrimHashCd(const char *p) {
+    const char *r = p;  while (*r) { r++; }
+    //const void * key = (const void*)&p;
+    const int len = (int)(r - p);
+    return (int) MurmurHash3(p, len) & 0x7fffffff; // convert to int but > 0
+  }
+  inline static int GetSecHashCd(const char *p) {
+    const char *r = p;  while (*r) { r++; }
+    //const void *key = (cont void*)&p;
+    const int len = (int)(r - p);
+    return (int) MurmurHash3(p, len) & 0x7fffffff;
+  }
   inline static int GetPrimHashCd(const TStr& s) { return GetPrimHashCd(s.CStr()); }
   inline static int GetSecHashCd(const TStr& s) { return GetSecHashCd(s.CStr()); }
 };

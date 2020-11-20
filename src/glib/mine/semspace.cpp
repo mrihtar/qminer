@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  * 
- * Copyright (C) 2014 Jozef Stefan Institute
- *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 //////////////////////////////////////////////////////////////////////////
@@ -273,14 +262,14 @@ TVecSemSpace::TVecSemSpace(PSVMTrainSet Set, PPartialGS R,
 };
 
 TVecSemSpace::TVecSemSpace(const TStr& MatlabFName): TSemSpace("Matlab") {
-    TLAMisc::LoadMatlabTFltVV(MatlabFName, BasisV);
+	TLinAlgIO::LoadMatlabTFltVV(MatlabFName, BasisV);
 }
 
 TVecSemSpace::TVecSemSpace(const TStr& MatlabFName, 
         const TStr& MapFName): TSemSpace("Matlab") {
 
     // load matlab matrix
-    TLAMisc::LoadMatlabTFltVV(MatlabFName, BasisV);
+	TLinAlgIO::LoadMatlabTFltVV(MatlabFName, BasisV);
     // parse map
     PSIn SIn = TFIn::New(MapFName);
     TILx Lx(SIn, TFSet()|iloRetEoln|iloSigNum|iloExcept);
@@ -788,7 +777,7 @@ void TSemSpaceAlg::CalcKCCA(const TFltVV& Ra, const TFltVV& Rb,
     TNumericalStuff::SymetricToTridiag(A, SubSizeB, d, e);
     // A is now transformation that made previous A tridiagonal
     // set B to identity matrix
-    TLAMisc::FillIdentity(B);
+    TLinAlgTransform::FillIdentity(B);
     // find eigenvectors of tridiagonal matrix
     printf("2..");
     TNumericalStuff::EigSymmetricTridiag(d, e, SubSizeB, B);
@@ -986,7 +975,7 @@ void TSemSpaceAlg::DecomposeKernelMatrix(PSVMTrainSet Set, const int& Dim,
     //printf("tridiagonalise kernel matrix...\n");
     TFltV d(Size+1), e(Size+1);
     TNumericalStuff::SymetricToTridiag(K, Size, d, e);
-    TFltVV V(Size, Size); TLAMisc::FillIdentity(V);
+    TFltVV V(Size, Size); TLinAlgTransform::FillIdentity(V);
     //printf("get eigen vectors...\n");
     TNumericalStuff::EigSymmetricTridiag(d, e, Size, V);
     // eigen vectors are now columns of (K*V)

@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #include "bd.h"
@@ -53,12 +42,12 @@ public:
   static bool IsMonthNm(const TStr& MonthNm, const TLoc& Loc=lUs){
     return GetMonthN(MonthNm, Loc)!=-1;}
   static TStr GetMonthNm(const int& MonthN, const TLoc& Loc=lUs);
-  static const TStrV& GetMonthNmV(const TLoc& Loc=lUs);  
+  static const TStrV& GetMonthNmV(const TLoc& Loc=lUs);
   static int GetDayOfWeekN(const TStr& DayOfWeekNm, const TLoc& Loc=lUs);
   static bool IsDayOfWeekNm(const TStr& DayOfWeekNm, const TLoc& Loc=lUs){
     return GetDayOfWeekN(DayOfWeekNm, Loc)!=-1;}
   static TStr GetDayOfWeekNm(const int& DayOfWeekN, const TLoc& Loc=lUs);
-  static const TStrV& GetDayOfWeekNmV(const TLoc& Loc=lUs);  
+  static const TStrV& GetDayOfWeekNmV(const TLoc& Loc=lUs);
   static TStr GetHmFromMins(const int& Mins);
   static int GetTmUnitSecs(const TTmUnit& TmUnit);
   static TStr GetTmUnitStr(const TTmUnit& TmUnit);
@@ -293,11 +282,15 @@ public:
 
   // get components
   int GetYear() const {return Year;}
+  /// returns the month in range 1 to 12
   int GetMonth() const {return Month;}
   TStr GetMonthNm() const {return TTmInfo::GetMonthNm(Month);}
   int GetDay() const {return Day;}
+  /// returns the day of week: 0 - Sunday, 1 - Monday, 2 - Tuesday, 3 - Wednesday, ...
   int GetDayOfWeek() const {return DayOfWeek;}
+  int GetDaysSinceMonday() const;
   TStr GetDayOfWeekNm() const {return TTmInfo::GetDayOfWeekNm(DayOfWeek);}
+  /// returns the number of hours past midnight, in range 0 to 23
   int GetHour() const {return Hour;}
   int GetMin() const {return Min;}
   int GetSec() const {return Sec;}
@@ -327,21 +320,21 @@ public:
   static TTm GetUniqueCurUniTm(const int& UniqueSpaces, const int& UniqueSpaceN);
   static TTm GetCurLocTm();
   static uint64 GetCurUniMSecs();
-  static uint64 GetCurLocMSecs();
+  static int64 GetCurUniUnixMSecs(); //< Number of milliseconds since 1970-01-01T00:00:00 (UTC)
   static uint64 GetMSecsFromTm(const TTm& Tm);
   static TTm GetTmFromMSecs(const uint64& MSecs);
   static uint GetMSecsFromOsStart();
   static uint64 GetPerfTimerFq();
   static uint64 GetPerfTimerTicks();
-  static void GetDiff(const TTm& Tm1, const TTm& Tm2, int& Days, 
+  static void GetDiff(const TTm& Tm1, const TTm& Tm2, int& Days,
 	  int& Hours, int& Mins, int& Secs, int& MSecs);
   static uint64 GetDiffMSecs(const TTm& Tm1, const TTm& Tm2);
   static uint64 GetDiffSecs(const TTm& Tm1, const TTm& Tm2){
-	return GetDiffMSecs(Tm1, Tm2)/uint64(1000);}
+    return GetDiffMSecs(Tm1, Tm2)/uint64(1000);}
   static uint64 GetDiffMins(const TTm& Tm1, const TTm& Tm2){
-	return GetDiffMSecs(Tm1, Tm2)/uint64(1000*60);}
+    return GetDiffMSecs(Tm1, Tm2)/uint64(1000*60);}
   static uint64 GetDiffHrs(const TTm& Tm1, const TTm& Tm2){
-	return GetDiffMSecs(Tm1, Tm2)/uint64(1000*60*60);}
+    return GetDiffMSecs(Tm1, Tm2)/uint64(1000*60*60);}
   static uint64 GetDiffDays(const TTm& Tm1, const TTm& Tm2){
     return GetDiffMSecs(Tm1, Tm2)/uint64(1000*60*60*24);}
   static TTm GetLocTmFromUniTm(const TTm& Tm);
@@ -349,20 +342,23 @@ public:
   static TTm GetTmFromWebLogTimeStr(const TStr& TimeStr,
    const char TimeSepCh=':', const char MSecSepCh='.');
   static TTm GetTmFromWebLogDateTimeStr(const TStr& DateTimeStr,
-   const char DateSepCh='-', const char TimeSepCh=':', 
+   const char DateSepCh='-', const char TimeSepCh=':',
    const char MSecSepCh='.', const char DateTimeSepCh=' ');
   static TTm GetTmFromIdStr(const TStr& IdStr);
-  
+
   // get unix timestamp
-  static uint GetDateTimeInt(const int& Year = 0, const int& Month = 1, 
+  static uint GetDateTimeInt(const int& Year = 0, const int& Month = 1,
     const int& Day = 1, const int& Hour = 0, const int& Min = 0,
-	const int& Sec = 0);   
-  static uint GetDateIntFromTm(const TTm& Tm);   
+	const int& Sec = 0);
+  static uint GetDateIntFromTm(const TTm& Tm);
   static uint GetMonthIntFromTm(const TTm& Tm);
   static uint GetYearIntFromTm(const TTm& Tm);
-  static uint GetDateTimeIntFromTm(const TTm& Tm);   
+  static uint GetDateTimeIntFromTm(const TTm& Tm);
   static TTm GetTmFromDateTimeInt(const uint& DateTimeInt);
   static TSecTm GetSecTmFromDateTimeInt(const uint& DateTimeInt);
+
+  static uint64 GetWinMSecsFromUnixMSecs(const int64& UnixMSecs) { return uint64(UnixMSecs + 11644473600000LL); }
+  static int64 GetUnixMSecsFromWinMSecs(const uint64& WinMSecs) { return int64(WinMSecs) - 11644473600000LL; }
 };
 typedef TVec<TTm> TTmV;
 typedef TPair<TTm, TStr> TTmStrPr;
@@ -391,7 +387,7 @@ public:
     if (GetSecs() < 60) { sprintf(TmStr, "%.2fs", GetSecs()); }
     else if (GetSecs() < 3600) { sprintf(TmStr, "%02dm%02ds", int(GetSecs())/60, int(GetSecs())%60); }
     else { sprintf(TmStr, "%02dh%02dm", int(GetSecs())/3600, (int(GetSecs())%3600)/60); }  return TmStr; }
-  static char* GetCurTm(){ static TStr TmStr; TmStr=TSecTm::GetCurTm().GetTmStr(); return TmStr.CStr(); }
+  static const char* GetCurTm(){ static TStr TmStr; TmStr=TSecTm::GetCurTm().GetTmStr(); return TmStr.CStr(); }
 };
 
 /////////////////////////////////////////////////
@@ -405,18 +401,18 @@ public:
     TTmStopWatch(const bool& Start = false): TmSoFar(0), RunningP(Start) { }
 
     void Start() { if (!RunningP) { RunningP = true; ExeTm.Tick(); } }
-    void Stop() { if (RunningP) { RunningP = false; TmSoFar += ExeTm.GetTime(); } }	
-	void Stop(const TStr& PrintMessage) { Stop(); DispTime(PrintMessage); }
+    void Stop() { if (RunningP) { RunningP = false; TmSoFar += ExeTm.GetTime(); } }
+    void Stop(const TStr& PrintMessage) { Stop(); DispTime(PrintMessage); }
     void Reset(const bool& Start) { TmSoFar = 0; RunningP = Start; ExeTm.Tick(); }
 
-	void DispTime(const TStr& PrintMessage) { printf(":%s :%f\n", PrintMessage.CStr(), GetSec()); }
+    void DispTime(const TStr& PrintMessage) { printf("%s: %f\n", PrintMessage.CStr(), GetSec()); }
     int GetTime() const { return TmSoFar + (RunningP ? ExeTm.GetTime() : 0); }
     double GetSec() const { return double(GetTime()) / double(CLOCKS_PER_SEC); }
     int GetSecInt() const { return TFlt::Round(GetSec()); }
     double GetMSec() const { return double(GetTime()) / double(CLOCKS_PER_SEC/1000); }
     int GetMSecInt() const { return TFlt::Round(GetMSec()); }
 
-	static TTmStopWatch GlobalStopWatch;
+    static TTmStopWatch GlobalStopWatch;
 };
 
 #ifdef SWTIMER
@@ -429,18 +425,18 @@ public:
 // Timer
 class TTmTimer {
 private:
-    int MxMSecs; 
+    int MxMSecs;
     TTmStopWatch StopWatch;
 
     UndefDefaultCopyAssign(TTmTimer);
 public:
     TTmTimer(const int& _MxMSecs): MxMSecs(_MxMSecs), StopWatch(true) { }
 
-    // restarts the timer from 0
+    /// restarts the timer from 0
     void Restart() { StopWatch.Reset(true); }
-    // returns true if the time has ran out
+    /// returns true if the time has ran out
     bool IsTimeUp() const { return (StopWatch.GetMSecInt() > MxMSecs); }
-    // get access to stopwatch
+    /// get access to stopwatch
     const TTmStopWatch& GetStopWatch() const { return StopWatch; }
 };
 
@@ -448,74 +444,112 @@ public:
 // Time-Window
 class TTmWnd {
 public:
-	class TCallback {
-	public:
-		virtual void NewTimeWnd(const uint64& TimeWndMSecs, const uint64& StartMSecs) = 0;
-	};
+    class TCallback {
+      public:
+        virtual void NewTimeWnd(const uint64& TimeWndMSecs, const uint64& StartMSecs) = 0;
+    };
 
 private:
-	// size of the aggregate time window (TUInt64::Mx means no time window)
-	TUInt64 TimeWndMSecs;
-	// last time window start (used to give 
-	TUInt64 StartMSecs;
-    //TODO: circular buffer of last values used to compute median of current time (robustnes))
-	// callback
-	TCallback* Callback;
+    /// size of the aggregate time window (TUInt64::Mx means no time window)
+    TUInt64 TimeWndMSecs;
+    /// last time window start (used to give
+    TUInt64 StartMSecs;
+    /// callback
+    TCallback* Callback;
 public:
-	TTmWnd(const uint64& _TimeWndMSecs = 0, TCallback* _Callback = NULL):
-		TimeWndMSecs(_TimeWndMSecs), Callback(_Callback) { }
-	TTmWnd(TSIn& SIn, TCallback* _Callback = NULL): 
-		TimeWndMSecs(SIn), StartMSecs(SIn), Callback(_Callback) { }
-	void Save(TSOut& SOut) const { TimeWndMSecs.Save(SOut); StartMSecs.Save(SOut); }
+    TTmWnd(const uint64& _TimeWndMSecs = 0, TCallback* _Callback = NULL):
+        TimeWndMSecs(_TimeWndMSecs), Callback(_Callback) { }
+    TTmWnd(TSIn& SIn, TCallback* _Callback = NULL):
+        TimeWndMSecs(SIn), StartMSecs(SIn), Callback(_Callback) { }
+    void Save(TSOut& SOut) const { TimeWndMSecs.Save(SOut); StartMSecs.Save(SOut); }
 
-    // tells if the time window was initialized
+    /// tells if the time window was initialized
     bool IsInit() const { return (TimeWndMSecs > 0) && (Callback != NULL); }
-    
-    // set time window
-    void SetTimeWndMSecs(const uint64& _TimeWndMSecs) { TimeWndMSecs = _TimeWndMSecs; }
-	// set callback
-	void SetCallback(TCallback* _Callback) { Callback = _Callback; }
 
-	// update time window according to new time tick
-	void Tick(const uint64& TimeMSecs);
-	// get current time window start
-	uint64 GetTimeWndStart() const { return StartMSecs; }
-	// get time window size
-	uint64 GetTimeWndSize() const { return TimeWndMSecs; }
-	// get time window
-	void GetTimeWnd(TTm& StartTm, TTm& EndTm) const;
+    /// set time window
+    void SetTimeWndMSecs(const uint64& _TimeWndMSecs) { TimeWndMSecs = _TimeWndMSecs; }
+    /// set callback
+    void SetCallback(TCallback* _Callback) { Callback = _Callback; }
+
+    /// update time window according to new time tick
+    void Tick(const uint64& TimeMSecs);
+    /// get current time window start
+    uint64 GetTimeWndStart() const { return StartMSecs; }
+    /// get time window size
+    uint64 GetTimeWndSize() const { return TimeWndMSecs; }
+    /// get time window
+    void GetTimeWnd(TTm& StartTm, TTm& EndTm) const;
 };
 
 /////////////////////////////////////////////////
 // Time-Profiler - poor-man's profiler
-ClassTP(TTmProfiler, PTmProfiler)//{
+class TTmProfiler {
 private:
-	TInt MxNmLen;
-	THash<TStr, TTmStopWatch> TimerH;
+    TInt MxNmLen;
+    THash<TStr, TTmStopWatch> TimerH;
 
 public:
-	TTmProfiler() { }
-	static PTmProfiler New() { return new TTmProfiler; }
+    TTmProfiler() { }
 
-	int AddTimer(const TStr& TimerNm);
-	int GetTimerId(const TStr& TimerNm) const { return TimerH.GetKeyId(TimerNm); }
+    int AddTimer(const TStr& TimerNm);
+    int GetTimerId(const TStr& TimerNm) const { return TimerH.GetKeyId(TimerNm); }
     TStr GetTimerNm(const int& TimerId) const { return TimerH.GetKey(TimerId); }
-	int GetTimers() const { return TimerH.Len(); }
-	int GetTimerIdFFirst() const { return TimerH.FFirstKeyId(); }
-	bool GetTimerIdFNext(int& TimerId) const { return TimerH.FNextKeyId(TimerId); }
-	// starts counting
-	void StartTimer(const TStr& TimerNm) { TimerH.GetDat(TimerNm).Start(); }
-	void StartTimer(const int& TimerId) { TimerH[TimerId].Start(); }
-	// stops counting
-	void StopTimer(const TStr& TimerNm) { TimerH.GetDat(TimerNm).Stop(); }
-	void StopTimer(const int& TimerId) { TimerH[TimerId].Stop(); }
+    int GetTimers() const { return TimerH.Len(); }
+    int GetTimerIdFFirst() const { return TimerH.FFirstKeyId(); }
+    bool GetTimerIdFNext(int& TimerId) const { return TimerH.FNextKeyId(TimerId); }
+    // starts counting
+    void StartTimer(const TStr& TimerNm) { TimerH.GetDat(TimerNm).Start(); }
+    void StartTimer(const int& TimerId) { TimerH[TimerId].Start(); }
+    // stops counting
+    void StopTimer(const TStr& TimerNm) { TimerH.GetDat(TimerNm).Stop(); }
+    void StopTimer(const int& TimerId) { TimerH[TimerId].Stop(); }
     // reset
     void ResetAll();
     void ResetTimer(const TStr& TimerNm) { TimerH.GetDat(TimerNm).Reset(false); }
     void ResetTimer(const int& TimerId) { TimerH[TimerId].Reset(false); }
-	// report
-	double GetTimerSumSec() const;
-	double GetTimerSec(const int& TimerId) const;
-	void PrintReport(const TStr& ProfileNm = "") const;
-	void PrintReport(const PNotify& Notify, const TStr& ProfileNm = "") const;
+    // report
+    double GetTimerSumSec() const;
+    double GetTimerSec(const int& TimerId) const;
+    void PrintReport(const TStr& ProfileNm = "") const;
+    void PrintReport(const PNotify& Notify, const TStr& ProfileNm = "") const;
+};
+
+/////////////////////////////////////////////////
+// Aggregate execution timer
+class TAggrExeTm {
+private:
+    /// Time measured so far
+    clock_t TimeSoFar;
+
+public:
+    TAggrExeTm(): TimeSoFar(0) { }
+
+    /// Add NewTime to the counter
+    void AddTime(const clock_t& NewTime) { TimeSoFar += NewTime; }
+    /// Get time in miliseconds
+    double GetMSec() const { return double(TimeSoFar) / double(CLOCKS_PER_SEC/1000); }
+    /// Get time in miliseconds
+    int GetMSecInt() const { return TFlt::Round(GetMSec()); }
+    /// Get time in seconds
+    double GetSec() const { return double(TimeSoFar) / double(CLOCKS_PER_SEC); }
+    /// Get time in seconds
+    int GetSecInt() const { return TFlt::Round(GetSec()); }
+    /// Get the memory footprint
+    uint64 GetMemUsed() const { return sizeof(TAggrExeTm); }
+};
+
+/////////////////////////////////////////////////
+// Automatic measurement of scope duration
+class TScopeStopWatch {
+private:
+    /// Reference to aggregate execution timer
+    TAggrExeTm& AggrExeTm;
+    /// Timer for the current scope
+    clock_t ScopeStartTm;
+
+public:
+    /// In constructor we remember the reference to aggregate counter and current time
+    TScopeStopWatch(TAggrExeTm& _AggrExeTm): AggrExeTm(_AggrExeTm), ScopeStartTm(clock()) { }
+    /// In desctructor we check how long we existed and add to the aggregate counter
+    ~TScopeStopWatch() { AggrExeTm.AddTime(clock() - ScopeStartTm); }
 };

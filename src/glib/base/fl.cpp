@@ -1,27 +1,20 @@
 /**
- * GLib - General C++ Library
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  * 
- * Copyright (C) 2014 Jozef Stefan Institute
- *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #ifdef GLib_LINUX
 extern "C" {
 	#include <sys/mman.h>
 }
-
+#include <sys/sendfile.h>  // sendfile
+#include <fcntl.h>         // open
+#include <unistd.h>        // close
+#include <sys/stat.h>      // fstat
+#include <sys/types.h>     // fstat
 #endif
 
 /////////////////////////////////////////////////
@@ -35,14 +28,7 @@ TCs TCs::GetCsFromBf(char* Bf, const int& BfL){
 }
 
 /////////////////////////////////////////////////
-// Stream-Base
-TStr TSBase::GetSNm() const {
-  return TStr(SNm.CStr());
-}
-
-/////////////////////////////////////////////////
 // Input-Stream
-TSIn::TSIn(const TStr& Str) : TSBase(Str.CStr()), FastMode(false){}
 
 void TSIn::LoadCs(){
   TCs CurCs=Cs; TCs TestCs;
@@ -77,14 +63,20 @@ bool TSIn::GetNextLn(TChA& LnChA){
   return !LnChA.Empty();
 }
 
+TStr TSIn::GetSNm() const {
+  return "Input-Stream"; 
+}
+
 const PSIn TSIn::StdIn=PSIn(new TStdIn());
 
-TStdIn::TStdIn(): TSBase("Standard input"), TSIn("Standard input") {}
+TStdIn::TStdIn(): TSBase(), TSIn() {}
+
+TStr TStdIn::GetSNm() const {
+  return "Standard-input";
+}
 
 /////////////////////////////////////////////////
 // Output-Stream
-TSOut::TSOut(const TStr& Str):
-  TSBase(Str.CStr()), MxLnLen(-1), LnLen(0){}
 
 int TSOut::UpdateLnLen(const int& StrLen, const bool& ForceInLn){
   int Cs=0;
@@ -227,9 +219,24 @@ TSOut& TSOut::operator<<(TSIn& SIn) {
   return *this;
 }
 
+TStr TSOut::GetSNm() const {
+  return "Output-Stream"; 
+}
+
 const PSOut TSOut::StdOut=PSOut(new TStdOut());
 
-TStdOut::TStdOut(): TSBase(TSStr("Standard output")), TSOut("Standard output"){}
+TStdOut::TStdOut(): TSBase(), TSOut(){}
+
+TStr TStdOut::GetSNm() const {
+  return "Standard output"; 
+}
+
+/////////////////////////////////////////////////
+// Input-Output-Stream-Base
+
+TStr TSInOut::GetSNm() const {
+  return "Input-Output-Stream"; 
+}
 
 /////////////////////////////////////////////////
 // Standard-Input
@@ -290,28 +297,42 @@ void TFIn::FillBf(){
 }
 
 TFIn::TFIn(const TStr& FNm):
-  TSBase(FNm.CStr()), TSIn(FNm), FileId(NULL), Bf(NULL), BfC(0), BfL(0){
+  TSBase(), TSIn(), SNm(FNm.CStr()), FileId(NULL), Bf(NULL), BfC(0), BfL(0){
+
   EAssertR(!FNm.Empty(), "Empty file-name.");
   FileId=fopen(FNm.CStr(), "rb");
   EAssertR(FileId!=NULL, "Can not open file '"+FNm+"'.");
   Bf=new char[MxBfL]; BfC=BfL=-1; FillBf();
 }
 
-TFIn::TFIn(const TStr& FNm, bool& OpenedP):
-  TSBase(FNm.CStr()), TSIn(FNm), FileId(NULL), Bf(NULL), BfC(0), BfL(0){
+TFIn::TFIn(const TStr& FNm, bool& OpenedP, const bool IgnoreBOMIfExistsP):
+  TSBase(), TSIn(), SNm(FNm.CStr()), FileId(NULL), Bf(NULL), BfC(0), BfL(0){
   EAssertR(!FNm.Empty(), "Empty file-name.");
   FileId=fopen(FNm.CStr(), "rb");
   OpenedP=(FileId!=NULL);
   if (OpenedP){
-    Bf=new char[MxBfL]; BfC=BfL=-1; FillBf();}
+    Bf=new char[MxBfL]; BfC=BfL=-1; FillBf();
+    if (IgnoreBOMIfExistsP && BfL >= 3) {
+      // https://en.wikipedia.org/wiki/Byte_order_mark
+      if (Bf[0] == (char)0xEF && Bf[1] == (char)0xBB && Bf[2] == (char)0xBF)
+        BfC = 3;
+    }
+  }
 }
 
 PSIn TFIn::New(const TStr& FNm){
+  try {
+    return PSIn(new TFIn(FNm));
+  } catch (PExcept& Except) {
+    printf("*** Exception: %s\n", Except->GetMsgStr().CStr());
+    EFailR(Except->GetMsgStr());
+  }
+
   return PSIn(new TFIn(FNm));
 }
 
-PSIn TFIn::New(const TStr& FNm, bool& OpenedP){
-  return PSIn(new TFIn(FNm, OpenedP));
+PSIn TFIn::New(const TStr& FNm, bool& OpenedP, const bool IgnoreBOMIfExistsP){
+  return PSIn(new TFIn(FNm, OpenedP, IgnoreBOMIfExistsP));
 }
 
 TFIn::~TFIn(){
@@ -320,11 +341,17 @@ TFIn::~TFIn(){
   if (Bf!=NULL){delete[] Bf;}
 }
 
+// reads LBfL bytes into LBf
 int TFIn::GetBf(const void* LBf, const TSize& LBfL){
   int LBfS=0;
   if (TSize(BfC+LBfL)>TSize(BfL)){
     for (TSize LBfC=0; LBfC<LBfL; LBfC++){
-      if (BfC==BfL){FillBf();}
+      if (BfC==BfL){
+        FillBf();
+        // we tried to fill a buffer (that is used in the next statement).
+        // the available buffer BfL therefore has to be non-empty
+        EAssertR(BfL > 0, "Unable to fill a buffer from " + GetSNm() + "'.");
+      }
       LBfS+=((char*)LBf)[LBfC]=Bf[BfC++];}
   } else {
     for (TSize LBfC=0; LBfC<LBfL; LBfC++){
@@ -415,6 +442,10 @@ int TFIn::FindEol(int& BfN, bool& CrEnd) {
   return 0;
 }
 
+TStr TFIn::GetSNm() const {
+  return SNm; 
+}
+
 /////////////////////////////////////////////////
 // Output-File
 const TSize TFOut::MxBfL=16*1024;;
@@ -427,7 +458,7 @@ void TFOut::FlushBf(){
 }
 
 TFOut::TFOut(const TStr& FNm, const bool& Append):
-  TSBase(FNm.CStr()), TSOut(FNm), FileId(NULL), Bf(NULL), BfL(0){
+  TSBase(), TSOut(), SNm(FNm.CStr()), FileId(NULL), Bf(NULL), BfL(0){
   if (FNm.GetUc()=="CON"){
     FileId=stdout;
   } else {
@@ -439,7 +470,7 @@ TFOut::TFOut(const TStr& FNm, const bool& Append):
 }
 
 TFOut::TFOut(const TStr& FNm, const bool& Append, bool& OpenedP):
-  TSBase(FNm.CStr()), TSOut(FNm), FileId(NULL), Bf(NULL), BfL(0){
+  TSBase(), TSOut(), SNm(FNm.CStr()), FileId(NULL), Bf(NULL), BfL(0){
   if (FNm.GetUc()=="CON"){
     FileId=stdout;
   } else {
@@ -489,10 +520,14 @@ void TFOut::Flush(){
   EAssertR(fflush(FileId)==0, "Can not flush file '"+GetSNm()+"'.");
 }
 
+TStr TFOut::GetSNm() const {
+  return SNm; 
+}
+
 /////////////////////////////////////////////////
 // Input-Output-File
 TFInOut::TFInOut(const TStr& FNm, const TFAccess& FAccess, const bool& CreateIfNo) :
- TSBase(TSStr(FNm.CStr())), FileId(NULL) {
+ TSBase(), SNm(FNm.CStr()), FileId(NULL) {
   switch (FAccess){
     case faCreate: FileId=fopen(FNm.CStr(), "w+b"); break;
     case faUpdate: FileId=fopen(FNm.CStr(), "r+b"); break;
@@ -545,10 +580,14 @@ TStr TFInOut::GetFNm() const {
   return GetSNm();
 }
 
+TStr TFInOut::GetSNm() const {
+  return SNm;
+}
+
 /////////////////////////////////////////////////
 // Input-Memory
 TMIn::TMIn(const void* _Bf, const int& _BfL, const bool& TakeBf):
-  TSBase("Input-Memory"), TSIn("Input-Memory"), Bf(NULL), BfC(0), BfL(_BfL){
+  TSBase(), TSIn(), Bf(NULL), BfC(0), BfL(_BfL){
   if (TakeBf){
     Bf=(char*)_Bf;
   } else {
@@ -557,23 +596,23 @@ TMIn::TMIn(const void* _Bf, const int& _BfL, const bool& TakeBf):
 }
 
 TMIn::TMIn(TSIn& SIn):
-  TSBase("Input-Memory"), TSIn("Input-Memory"), Bf(NULL), BfC(0), BfL(0){
+  TSBase(), TSIn(), Bf(NULL), BfC(0), BfL(0){
   BfL=SIn.Len(); Bf=new char[BfL];
   for (int BfC=0; BfC<BfL; BfC++){Bf[BfC]=SIn.GetCh();}
 }
 
 TMIn::TMIn(const char* CStr):
-  TSBase("Input-Memory"), TSIn("Input-Memory"), Bf(NULL), BfC(0), BfL(0){
+  TSBase(), TSIn(), Bf(NULL), BfC(0), BfL(0){
   BfL=int(strlen(CStr)); Bf=new char[BfL+1]; strcpy(Bf, CStr);
 }
 
 TMIn::TMIn(const TStr& Str):
-  TSBase("Input-Memory"), TSIn("Input-Memory"), Bf(NULL), BfC(0), BfL(0){
+  TSBase(), TSIn(), Bf(NULL), BfC(0), BfL(0){
   BfL=Str.Len(); Bf=new char[BfL]; strncpy(Bf, Str.CStr(), BfL);
 }
 
 TMIn::TMIn(const TChA& ChA):
-  TSBase("Input-Memory"), TSIn("Input-Memory"), Bf(NULL), BfC(0), BfL(0){
+  TSBase(), TSIn(), Bf(NULL), BfC(0), BfL(0){
   BfL=ChA.Len(); Bf=new char[BfL]; strncpy(Bf, ChA.CStr(), BfL);
 }
 
@@ -611,10 +650,20 @@ int TMIn::GetBf(const void* LBf, const TSize& LBfL){
   return LBfS;
 }
 
+void TMIn::GetBfMemCpy(void* LBf, const TSize& LBfL) {
+	EAssertR(TSize(BfC + LBfL) <= TSize(BfL), "Reading beyond the end of stream.");
+	memcpy(LBf, Bf, LBfL);
+	BfC += (int)LBfL;
+}
+
 bool TMIn::GetNextLnBf(TChA& LnChA){
   // not implemented
   FailR(TStr::Fmt("TMIn::GetNextLnBf: not implemented").CStr());
   return false;
+}
+
+TStr TMIn::GetSNm() const {
+  return "Input-Memory"; 
 }
 
 /////////////////////////////////////////////////
@@ -635,14 +684,14 @@ void TMOut::Resize(const int& ReqLen){
 }
 
 TMOut::TMOut(const int& _MxBfL):
-  TSBase("Output-Memory"), TSOut("Output-Memory"),
+  TSBase(), TSOut(),
   Bf(NULL), BfL(0), MxBfL(0), OwnBf(true){
   MxBfL=_MxBfL>0?_MxBfL:1024;
   Bf=new char[MxBfL];
 }
 
 TMOut::TMOut(char* _Bf, const int& _MxBfL):
-  TSBase("Output-Memory"), TSOut("Output-Memory"),
+  TSBase(), TSOut(),
   Bf(_Bf), BfL(0), MxBfL(_MxBfL), OwnBf(false){}
 
 void TMOut::AppendBf(const void* LBf, const TSize& LBfL) {
@@ -746,6 +795,10 @@ void TMOut::MkEolnLn(){
     PutCh(TCh::CrCh); PutCh(TCh::LfCh);}
 }
 
+TStr TMOut::GetSNm() const {
+  return "Output-Memory"; 
+}
+
 /////////////////////////////////////////////////
 // Line-Returner
 // J: after talking to BlazF -- can be removed from GLib
@@ -794,7 +847,7 @@ TFRnd::TFRnd(const TStr& _FNm, const TFAccess& FAccess,
 }
 
 TFRnd::~TFRnd(){
-  EAssertR(fclose(FileId)==0, "Can not close file '"+TStr(FNm)+"'.");
+  EAssertR(fclose(FileId)==0, "Can not close file '"+TStr(FNm.CStr())+"'.");
 }
 
 TStr TFRnd::GetFNm() const {
@@ -973,6 +1026,11 @@ void TFile::Copy(const TStr& SrcFNm, const TStr& DstFNm,
   }
 }
 
+bool TFile::Move(const TStr& SrcFNm, const TStr& DstFNm,
+  const bool& ThrowExceptP, const bool& FailIfExistsP) {
+	return MoveFileEx(SrcFNm.CStr(), DstFNm.CStr(), FailIfExistsP ? 0 : MOVEFILE_REPLACE_EXISTING) != 0;
+}
+
 #elif defined(GLib_LINUX)
 
 void TFile::Copy(const TStr& SrcFNm, const TStr& DstFNm,
@@ -1006,8 +1064,7 @@ void TFile::Copy(const TStr& SrcFNm, const TStr& DstFNm,
 
 
 	filesize = lseek(input, 0, SEEK_END);
-	lseek(output, filesize - 1, SEEK_SET);
-	write(output, '\0', 1);
+	posix_fallocate(output, 0, filesize);
 
 	if((source = mmap(0, filesize, PROT_READ, MAP_SHARED, input, 0)) == (void *) -1) {
 		close(input);
@@ -1041,15 +1098,26 @@ void TFile::Copy(const TStr& SrcFNm, const TStr& DstFNm,
 
 	close(input);
 	close(output);
+}
 
+bool TFile::Move(const TStr& SrcFNm, const TStr& DstFNm,
+  const bool& ThrowExceptP, const bool& FailIfExistsP) {
+	TFile::Copy(SrcFNm, DstFNm, ThrowExceptP, FailIfExistsP);
+	return TFile::Del(SrcFNm, ThrowExceptP);
 }
 
 #elif defined(GLib_MACOSX)
 
 void TFile::Copy(const TStr& SrcFNm, const TStr& DstFNm,
-                 const bool& ThrowExceptP, const bool& FailIfExistsP) {
+  const bool& ThrowExceptP, const bool& FailIfExistsP) {
     
     FailR("Feature not implemented");
+}
+
+bool TFile::Move(const TStr& SrcFNm, const TStr& DstFNm,
+  const bool& ThrowExceptP, const bool& FailIfExistsP) {
+	TFile::Copy(SrcFNm, DstFNm, ThrowExceptP, FailIfExistsP);
+	return TFile::Del(SrcFNm, ThrowExceptP);
 }
 
 #endif
@@ -1066,7 +1134,9 @@ bool TFile::Del(const TStr& FNm, const bool& ThrowExceptP){
 void TFile::DelWc(const TStr& WcStr, const bool& RecurseDirP){
   // collect file-names
   TStrV FNmV;
-  TFFile FFile(WcStr, RecurseDirP); TStr FNm;
+  TFFile FFile(WcStr, RecurseDirP);
+
+  TStr FNm;
   while (FFile.Next(FNm)){
     FNmV.Add(FNm);}
   // delete files
@@ -1091,7 +1161,7 @@ TStr TFile::GetUniqueFNm(const TStr& FNm){
   }
   forever{
     NewFNm=TmpFNm;
-    NewFNm.ChangeStr("#", TStr::Fmt("%03d", Cnt)); Cnt++;
+	NewFNm.ChangeStr("#", TStr::Fmt("%03d", Cnt)); Cnt++;
     if (!TFile::Exists(NewFNm)){break;}
   }
   return NewFNm;

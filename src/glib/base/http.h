@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #include "bd.h"
@@ -40,6 +29,7 @@ public:
   static const TStr LocFldNm;
   static const TStr SetCookieFldNm;
   static const TStr CookieFldNm;
+  static const TStr ResponseTimeNm;
   // content-type field-values
   static const TStr TextFldVal;
   static const TStr TextPlainFldVal;
@@ -184,11 +174,13 @@ private:
   void ParseHttpResp(const PSIn& SIn);
 public:
   THttpResp(const int& _StatusCd, const TStr& ContTypeVal,
-   const bool& CacheCtrlP, const PSIn& BodySIn, const TStr LocStr);
+   const bool& CacheCtrlP, const PSIn& BodySIn, const TStr LocStr, 
+   const int& ResponseTimeMs = 0, const TStrKdV& CustomHdrV = TStrKdV());
   static PHttpResp New(const int& StatusCd, const TStr& ContTypeVal,
-   const bool& CacheCtrlP, const PSIn& BodySIn, const TStr LocStr=TStr()){
+   const bool& CacheCtrlP, const PSIn& BodySIn, const TStr LocStr=TStr(), 
+      const int& ResponseTimeMs = 0, const TStrKdV& CustomHdrV = TStrKdV()){
     return PHttpResp(new
-     THttpResp(StatusCd, ContTypeVal, CacheCtrlP, BodySIn, LocStr));}
+     THttpResp(StatusCd, ContTypeVal, CacheCtrlP, BodySIn, LocStr, ResponseTimeMs, CustomHdrV));}
   THttpResp(const PSIn& SIn);
   static PHttpResp New(const PSIn& SIn){
     return PHttpResp(new THttpResp(SIn));}

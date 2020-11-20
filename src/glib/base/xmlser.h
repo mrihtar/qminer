@@ -1,40 +1,31 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #ifndef _xmlser_h
 #define _xmlser_h
 
-// !bn: pobrisan 'explicit' - je pa se v bd.h - a je prov tko?
 template <class TRec>
 TPt<TRec>::TPt(TSIn& SIn):
     Addr(NULL){TBool IsNull(SIn);
-    if (!IsNull){TPt Pt=TRec::Load(SIn); Addr=Pt.Addr; MkRef();}}
+    if (!IsNull){TPt Pt=TRec::Load(SIn); Addr=Pt.Addr; MkRef();}
+}
 
 template <class TRec>
 TPt<TRec>::TPt(TSIn& SIn, void* ThisPt):
     Addr(NULL){TBool IsNull(SIn);
-    if (!IsNull){TPt Pt=TRec::Load(SIn, ThisPt); Addr=Pt.Addr; MkRef();}}
+    if (!IsNull){TPt Pt=TRec::Load(SIn, ThisPt); Addr=Pt.Addr; MkRef();}
+}
 
 template <class TRec>
 void TPt<TRec>::Save(TSOut& SOut) const {
     if (Addr==NULL){TBool(true).Save(SOut);}
-    else {TBool(false).Save(SOut); Addr->Save(SOut);}}
+    else {TBool(false).Save(SOut); Addr->Save(SOut);}
+}
 
 template <class TRec>
 void TPt<TRec>::LoadXml(const TPt<TXmlTok>& XmlTok, const TStr& Nm){
@@ -57,6 +48,27 @@ void TPt<TRec>::SaveXml(TSOut& SOut, const TStr& Nm) const {
     Addr->SaveXml(SOut, "-");
   }
 }
+
+template <class TRec>
+TWPt<TRec>::TWPt(TSIn& SIn) :
+    Addr(NULL) {
+    TBool IsNull(SIn);
+    if (!IsNull) { TWPt Pt = TRec::Load(SIn); Addr = Pt.Addr; }
+}
+
+template <class TRec>
+TWPt<TRec>::TWPt(TSIn& SIn, void* ThisPt) :
+    Addr(NULL) {
+    TBool IsNull(SIn);
+    if (!IsNull) { TWPt Pt = TRec::Load(SIn, ThisPt); Addr = Pt.Addr; }
+}
+
+template <class TRec>
+void TWPt<TRec>::Save(TSOut& SOut) const {
+    if (Addr == NULL) { TBool(true).Save(SOut); }
+    else { TBool(false).Save(SOut); Addr->Save(SOut); }
+}
+
 
 /////////////////////////////////////////////////
 // Xml-Object-Serialization

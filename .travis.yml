@@ -1,15 +1,68 @@
-language: cpp
-compiler: gcc
-before_install:
- - sudo apt-get update -qq
- - sudo apt-get install -qq uuid-dev
+git:
+  depth: 10
+
+language: node_js
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - gcc-7
+      - g++-7
+      - gcc-7-multilib
+      - g++-7-multilib
+      - libc6-dev-i386
+      - linux-libc-dev:i386
+
+jobs:
+  include:
+    - os: linux
+      dist: trusty
+      env: CXXFLAGS=-std=c++0x CC=gcc-7 CXX=g++-7
+      node_js: 10
+
+    - os: linux
+      dist: trusty
+      env: CXXFLAGS=-std=c++0x CC=gcc-7 CXX=g++-7
+      node_js: 12
+
+    - os: linux
+      dist: trusty
+      env: CXXFLAGS=-std=c++0x CC=gcc-7 CXX=g++-7
+      node_js: 14
+
+    - os: osx
+      osx_image: xcode10.1
+      env: NPMOPT=--clang=1 QMDEBUG=--debug
+      node_js: 10
+
+    - os: osx
+      osx_image: xcode10.1
+      env: NPMOPT=--clang=1 QMDEBUG=--debug
+      node_js: 12
+
+    - os: osx
+      osx_image: xcode10.1
+      env: NPMOPT=--clang=1 QMDEBUG=--debug
+      node_js: 14
+
 install:
-  - make lib
-script: 
-  - make
-  - ./test/javascript/test.sh
-os: linux
+  - npm install --build-from-source $NPMOPT $QMDEBUG
+
+script:
+  - npm install -g mocha@6.2.3
+  - npm install -g mustache
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+      ./tools/genExampleTests.sh;
+      npm test;
+    else
+      npm run test:nodejs;
+    fi
+
 notifications:
   email:
+    - erik.novak@ijs.si
     - blaz.fortuna@ijs.si
     - jan.rupnik@ijs.si
+    - viktor@carvic.si

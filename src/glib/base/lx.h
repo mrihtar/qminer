@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #include "bd.h"
@@ -24,7 +13,7 @@
 typedef enum {lctUndef, lctSpace, lctNum, lctAlpha, lctSSym, lctTerm} TLxChTy;
 typedef enum {lcdtUsAscii, lcdtYuAscii} TLxChDefTy;
 
-ClassTP(TLxChDef, PLxChDef)//{
+class TLxChDef{
 private:
   TIntV ChTyV;
   TChV UcChV;
@@ -32,10 +21,7 @@ private:
   void SetChTy(const TLxChTy& ChTy, const TStr& Str);
 public:
   TLxChDef(const TLxChDefTy& ChDefTy);
-  static PLxChDef New(const TLxChDefTy& ChDefTy=lcdtUsAscii){
-    return PLxChDef(new TLxChDef(ChDefTy));}
   TLxChDef(TSIn& SIn): ChTyV(SIn), UcChV(SIn){}
-  static PLxChDef Load(TSIn& SIn){return new TLxChDef(SIn);}
   void Save(TSOut& SOut){ChTyV.Save(SOut); UcChV.Save(SOut);}
 
   TLxChDef& operator=(const TLxChDef& ChDef){
@@ -54,8 +40,9 @@ public:
   TStr GetUcStr(const TStr& Str) const;
 
   // standard entry points
-  static PLxChDef GetChDef(const TLxChDefTy& ChDefTy=lcdtUsAscii);
-//  static TLxChDef& GetChDefRef(const TLxChDefTy& ChDefTy=lcdtUsAscii);
+  static TLxChDef UsAsciiChDef;
+  static TLxChDef YuAsciiChDef;
+  static const TLxChDef& GetChDef(const TLxChDefTy& ChDefTy=lcdtUsAscii);
 };
 
 /////////////////////////////////////////////////
@@ -143,11 +130,11 @@ public:
 // Lexical-Input
 typedef enum {
   iloCmtAlw, iloRetEoln, iloSigNum, iloUniStr, iloCsSens,
-  iloExcept, iloTabSep, iloList, iloMx} TILxOpt;
+  iloExcept, iloTabSep, iloList, iloIgnoreEscape, iloMx} TILxOpt;
 
 class TILx{
 private:
-  PLxChDef ChDef;
+  const TLxChDef& ChDef;
   PSIn SIn;
   TSIn& RSIn;
   char PrevCh, Ch;
@@ -155,7 +142,7 @@ private:
   TSStack<TILxSymSt> PrevSymStStack;
   TStrIntH RwStrH;
   bool IsCmtAlw, IsRetEoln, IsSigNum, IsUniStr, IsCsSens;
-  bool IsExcept, IsTabSep, IsList;
+  bool IsExcept, IsTabSep, IsList, IsIgnoreEscape;
   char GetCh(){
     Assert(Ch!=TCh::EofCh);
     PrevCh=Ch; LnChN++; ChN++;
@@ -163,7 +150,7 @@ private:
     if (IsList){putchar(Ch);}
     return Ch;
   }
-  char GetChX(){char Ch=GetChX(); printf("%c", Ch); return Ch;}
+  //char GetChX(){char Ch=GetChX(); printf("%c", Ch); return Ch;}
 public: // symbol state
   TLxSym Sym;
   TChA Str, UcStr, CmtStr;
@@ -269,7 +256,7 @@ typedef enum {
 
 class TOLx{
 private:
-  PLxChDef ChDef;
+  const TLxChDef& ChDef;
   PSOut SOut;
   TSOut& RSOut;
   bool IsCmtAlw, IsFrcEoln, IsSigNum, IsUniStr;
@@ -300,10 +287,10 @@ public:
     if (!IsSigNum){Assert(Flt>=0);}
     PutSep(syFlt); RSOut.PutStr(TFlt::GetStr(Flt, Width, Prec));}
   void PutStr(const TStr& Str){
-    if ((IsUniStr)&&(ChDef->IsNmStr(Str))){PutSep(syIdStr); RSOut.PutStr(Str);}
+    if ((IsUniStr)&&(ChDef.IsNmStr(Str))){PutSep(syIdStr); RSOut.PutStr(Str);}
     else {PutSep(syStr); RSOut.PutCh('"'); RSOut.PutStr(Str); RSOut.PutCh('"');}}
   void PutIdStr(const TStr& Str, const bool& CheckIdStr=true){
-    if (CheckIdStr){Assert(ChDef->IsNmStr(Str));}
+    if (CheckIdStr){Assert(ChDef.IsNmStr(Str));}
     PutSep(syIdStr); RSOut.PutStr(Str);}
   void PutQStr(const TStr& Str){
     PutSep(syQStr); RSOut.PutCh('"'); RSOut.PutStr(Str); RSOut.PutCh('"');}

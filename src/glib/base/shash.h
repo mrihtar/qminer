@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #ifndef shash_h
@@ -69,7 +58,7 @@ public:
     TInt ElemCnt(SIn);  const int Start=clock();
     if (ElemCnt < LoadN || LoadN == -1) { LoadN = ElemCnt; }
     printf("Loading %s: %d elements ... ", SIn.GetSNm().CStr(), LoadN);  DatV.Gen(LoadN, 0);
-    for (int i = 0; i < LoadN; i++) { TKey(SIn);  DatV.Add(TDat(SIn)); }
+    for (int i = 0; i < LoadN; i++) { TKey Key(SIn);  DatV.Add(TDat(SIn)); }
     printf(" [%ds]\n", int((clock()-Start)/CLOCKS_PER_SEC));
   }
 };
@@ -1016,6 +1005,10 @@ public:
   void SaveXml(TSOut& SOut, const TStr& Nm) const {
     XSaveHd(Nm); XSave(Key); }
 
+  int GetMemUsed() const {
+      return sizeof(THashSetKey<TKey>) + (int)
+          TMemUtils::GetExtraMemberSize(Key); }
+
   THashSetKey& operator=(const THashSetKey& SetKey) {
     if (this!=&SetKey) { Next=SetKey.Next; HashCd=SetKey.HashCd; Key=SetKey.Key; }
     return *this; }
@@ -1026,8 +1019,9 @@ public:
 // Set-Hash-Key-Iterator
 template <class TKey>
 class THashSetKeyI{
-private:
+public:
   typedef THashSetKey<TKey> TSetKey;
+private:
   TSetKey* KeyI;
   TSetKey* EndI;
 public:
@@ -1043,12 +1037,20 @@ public:
     return KeyI==SetKeyI.KeyI; }
   bool operator<(const THashSetKeyI& SetKeyI) const {
     return KeyI<SetKeyI.KeyI; }
+  THashSetKeyI& operator++() { KeyI++; while (KeyI < EndI && KeyI->HashCd==-1) { KeyI++; } return *this; }
   THashSetKeyI& operator++(int) { KeyI++; while (KeyI < EndI && KeyI->HashCd==-1) { KeyI++; } return *this; }
+  THashSetKeyI& operator--() { do { KeyI--; } while (KeyI->HashCd==-1); return *this; }
   THashSetKeyI& operator--(int) { do { KeyI--; } while (KeyI->HashCd==-1); return *this; }
 
   const TKey& operator*() const { return KeyI->Key; }
   const TKey& operator()() const { return KeyI->Key; }
   const TKey* operator->() const { return KeyI->Key; }
+  THashSetKeyI& Next() { operator++(1); return *this; }
+
+  /// Tests whether the iterator has been initialized.
+  bool IsEmpty() const { return KeyI == NULL; }
+  /// Tests whether the iterator is pointing to the past-end element.
+  bool IsEnd() const { return EndI == KeyI; }
 
   const TKey& GetKey() const {Assert((KeyI!=NULL)&&(KeyI->HashCd!=-1)); return KeyI->Key; }
 };
@@ -1121,7 +1123,9 @@ public:
       return TIter(KeyV.BegI()+FKeyId, KeyV.EndI()); }
     return TIter(KeyV.EndI(), KeyV.EndI());
   }
+  TIter begin() const { return BegI(); } // required by C++11 for each
   TIter EndI() const {return TIter(KeyV.EndI(), KeyV.EndI()); }
+  TIter end() const { return EndI(); } // required by C++11 for each
   TIter GetI(const TKey& Key) const {return TIter(&KeyV[GetKeyId(Key)], KeyV.EndI()); }
 
   void Gen(const int& ExpectVals) {
@@ -1399,6 +1403,7 @@ typedef THashSet<TStr> TStrSet;
 typedef THashSet<TUChIntPr> TUChIntPrSet;
 typedef THashSet<TUChUInt64Pr> TUChUInt64PrSet;
 typedef THashSet<TIntPr> TIntPrSet;
+typedef THashSet<TIntFltPr> TIntFltPrSet;
 
 /////////////////////////////////////////////////
 // Packed Vec

@@ -1,24 +1,14 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
-
 #ifndef bd_h
 #define bd_h
+
+#include <cstdint>
 
 /////////////////////////////////////////////////
 // Basic-Macro-Definitions
@@ -39,43 +29,46 @@ typedef char int8;
 typedef short int16;
 typedef int int32;
 #ifdef GLib_WIN
-typedef __int64 int64;
+  typedef __int64 int64;
 #elif defined(GLib_GLIBC)
-typedef int64_t int64;
+  typedef int64_t int64;
 #else
-typedef long long int64;
+  typedef long long int64;
 #endif
 
 typedef unsigned char uint8;
 typedef unsigned short uint16;
 typedef unsigned int uint32;
 #ifdef GLib_WIN
-typedef unsigned __int64 uint64;
+  typedef unsigned __int64 uint64;
 #elif defined(GLib_GLIBC)
-typedef u_int64_t uint64;
+  typedef u_int64_t uint64;
 #else
 typedef unsigned long long uint64;
 #endif
 
 #if (!defined(__ssize_t_defined) && !defined(GLib_MACOSX))
-typedef ptrdiff_t ssize_t;
+  typedef ptrdiff_t ssize_t;
 #endif
 
-#if defined(GLib_UNIX)
-#define _isnan(x) isnan(x)
 #if defined(GLib_MACOSX)
+  #define _isnan(x) std::isnan(x)
   #define _finite(x) isfinite(x)
-#else
+#elif defined(GLib_UNIX)
+  #define _isnan(x) std::isnan(x)
   #define _finite(x) finite(x)
-#endif
 #endif
 
 #if defined(GLib_WIN)
-#define _vsnprintf vsnprintf
+  #define _vsnprintf vsnprintf
 #endif
 
 typedef size_t TSize;
-#define TSizeMx SIZE_MAX
+# ifdef GLib_64Bit
+  #define TSizeMx (18446744073709551615UL)
+# else
+  #define TSizeMx (4294967295U)
+# endif
 
 /////////////////////////////////////////////////
 // Localization
@@ -146,7 +139,7 @@ class TNm{
 class TNm; \
 typedef TPt<TNm> PNm; \
 class TNm{ \
-private: \
+protected: \
   TCRef CRef; \
 public: \
   friend class TPt<TNm>;
@@ -159,8 +152,6 @@ typedef TPt<TNm> PNm;
 class TNm; \
 typedef TPt<TNm> PNm; \
 class TNm: public ENm{ \
-private: \
-  TCRef CRef; \
 public: \
   friend class TPt<TNm>;
 
@@ -168,8 +159,6 @@ public: \
 class TNm; \
 typedef TPt<TNm> PNm; \
 class TNm: public ENm1, public ENm2{ \
-private: \
-  TCRef CRef; \
 public: \
   friend class TPt<TNm>;
 
@@ -183,7 +172,7 @@ class TNm; \
 typedef TPt<TNm> PNm; \
 typedef TVec<PNm> TNmV; \
 class TNm{ \
-private: \
+protected: \
   TCRef CRef; \
 public: \
   friend class TPt<TNm>;
@@ -200,7 +189,7 @@ typedef TVec<PNm> TNmV; \
 typedef TLst<PNm> TNmL; \
 typedef TLstNd<PNm>* TNmLN; \
 class TNm{ \
-private: \
+protected: \
   TCRef CRef; \
 public: \
   friend class TPt<TNm>;
@@ -210,6 +199,7 @@ public: \
 class TSIn;
 class TSOut;
 class TStr;
+class TChA;
 class TXmlObjSer;
 class TXmlObjSerTagNm;
 template <class TRec> class TPt;
@@ -241,8 +231,9 @@ private: \
 /////////////////////////////////////////////////
 // Assertions
 class TOnExeStop{
-private:
+public:
   typedef bool (*TOnExeStopF)(char* MsgCStr);
+private:
   static TOnExeStopF OnExeStopF;
 public:
   static bool IsOnExeStopF(){return OnExeStopF!=NULL;}
@@ -317,7 +308,7 @@ void ExeStop(
 
 #define ESAssert(Cond) \
   ((Cond) ? static_cast<void>(0) : TExcept::Throw(TSysStr::GetLastMsgCStr(), \
-  TStr(__FILE__) + " line " + TInt::GetStr(__LINE__) +": "+ TStr(#Cond)))
+    TStr(__FILE__) + TStr(" line ") + TInt::GetStr(__LINE__) + TStr(": ")+ TStr(#Cond) ))
 
 // compile time assert
 // #define STATIC_ASSERT(x) { const char temp[ (((x) == 0) ? 0 : 1) ] = {'\0'}; }
@@ -326,7 +317,7 @@ template <> struct TStaticAssert<true> { enum { value = 1 }; };
 template<int IntVal> struct TStaticAssertTest{};
 
 #define CAssert(Cond) \
-  { typedef TStaticAssertTest<sizeof(TStaticAssert<(Cond)==0?false:true>)> TestStaticAssert; }
+  /* { typedef TStaticAssertTest<sizeof(TStaticAssert<(Cond)==0?false:true>)> TestStaticAssert; } */
 
 /////////////////////////////////////////////////
 // Xml-Object-Serialization
@@ -477,6 +468,7 @@ public:
   void UnRef(){Assert(Refs>0); Refs--;}
   bool NoRef() const {return Refs==0;}
   int GetRefs() const {return Refs;}
+  uint64 GetMemUsed() const { return sizeof(TCRef); }
 };
 
 /////////////////////////////////////////////////
@@ -485,7 +477,6 @@ template <class TRec> class TWPt;
 
 /////////////////////////////////////////////////
 // Smart-Pointer-With-Reference-Count
-
 template <class TRec>
 class TPt{
 public:
@@ -507,7 +498,7 @@ public:
   TPt(): Addr(NULL){}
   TPt(const TPt& Pt): Addr(Pt.Addr){MkRef();}
   TPt(TRec* _Addr): Addr(_Addr){MkRef();}
-  TPt(TWPt<TRec> WPt): Addr(WPt()){MkRef();}  
+  TPt(TWPt<TRec> WPt): Addr(WPt()){MkRef();}
   static TPt New(){return TObj::New();}
   ~TPt(){UnRef();}
   explicit TPt(TSIn& SIn);
@@ -521,7 +512,7 @@ public:
   bool operator==(const TPt& Pt) const {return *Addr==*Pt.Addr;}
   bool operator!=(const TPt& Pt) const {return *Addr!=*Pt.Addr;}
   bool operator<(const TPt& Pt) const {return *Addr<*Pt.Addr;}
-  
+
   TRec* operator->() const {Assert(Addr!=NULL); return Addr;}
   TRec& operator*() const {Assert(Addr!=NULL); return *Addr;}
   TRec& operator[](const int& RecN) const {
@@ -537,6 +528,7 @@ public:
 
   int GetPrimHashCd() const {return Addr->GetPrimHashCd();}
   int GetSecHashCd() const {return Addr->GetSecHashCd();}
+  uint64 GetMemUsed() const { return (Empty() ? 0 : Addr->GetMemUsed()) + sizeof(TPt); }
 
   TPt<TRec> Clone(){return MkClone(*this);}
 };
@@ -555,6 +547,9 @@ public:
   TWPt(const TWPt& WPt): Addr(WPt.Addr){}
   TWPt(const TPt<TRec>& Pt): Addr(Pt()){}
   ~TWPt(){}
+  explicit TWPt(TSIn& SIn);
+  explicit TWPt(TSIn& SIn, void* ThisPt);
+  void Save(TSOut& SOut) const;
 
   TWPt& operator=(TRec* _Addr){Addr=_Addr; return *this;}
   TWPt& operator=(const TWPt& WPt){Addr=WPt.Addr; return *this;}
@@ -562,7 +557,7 @@ public:
   bool operator==(const TWPt& WPt) const {return *Addr==*WPt.Addr;}
   bool operator!=(const TWPt& WPt) const {return *Addr!=*WPt.Addr;}
   bool operator<(const TWPt& WPt) const {return *Addr<*WPt.Addr;}
-  
+
   TRec* operator->() const {Assert(Addr!=NULL); return Addr;}
   TRec& operator*() const {Assert(Addr!=NULL); return *Addr;}
   TRec& operator[](const int& RecN) const {
@@ -571,10 +566,11 @@ public:
 
   bool Empty() const {return Addr==NULL;}
   void Clr(){Addr=NULL;}
-  void Del(){delete Addr;}
+  void Del(){Assert(Addr!=NULL); delete Addr; Addr=NULL;}
 
   int GetPrimHashCd() const {return Addr->GetPrimHashCd();}
-  int GetSecHashCd() const {return Addr->GetSecHashCd();}
+  int GetSecHashCd() const { return Addr->GetSecHashCd(); }
+  uint64 GetMemUsed() const { return (Empty() ? 0 : Addr->GetMemUsed()) + sizeof(TWPt); }
 };
 
 /////////////////////////////////////////////////
@@ -634,7 +630,8 @@ public:
 // Swap
 template <class TRec>
 void Swap(TRec& Rec1, TRec& Rec2){
-  TRec Rec=Rec1; Rec1=Rec2; Rec2=Rec;
+    std::swap(Rec1, Rec2); // C++11
+  //TRec Rec=Rec1; Rec1=Rec2; Rec2=Rec; // C++98
 }
 
 /////////////////////////////////////////////////
@@ -662,12 +659,200 @@ public:
     return (RQ == 0x7fffffffU) ? 0 : (int) RQ; }
 };
 
-// Depending on the platform and compiler settings choose the faster implementation
+//////////////////////////////////////////
+// Type traits
+namespace gtraits {
+
+#ifdef GLib_CPP11
+  // true and false types
+  using true_type = std::true_type;
+  using false_type = std::false_type;
+  // enable_if
+  template <bool B, typename T = void>
+  using enable_if = std::enable_if<B, T>;
+  // is_same
+  template <class T, class U>
+  using is_same = std::is_same<T,U>;
+#else
+  // type trait definitions for older versions of CPP
+
+  template<class T, T v>
+  struct integral_constant {
+    static constexpr T value = v;
+    typedef T value_type;
+    typedef integral_constant type; // using injected-class-name
+    constexpr operator value_type() const noexcept { return value;  }
+    constexpr value_type operator()() const noexcept { return value;  } //since c++14
+  };
+
+  // true, false types
+  typedef std::integral_constant<bool, true> true_type;
+  typedef std::integral_constant<bool, false> false_type;
+
+  // enable_if
+  template <bool B, typename T = void>
+  struct enable_if {
+    typedef T type;
+  };
+
+  template <typename T>
+  struct enable_if<false, T> {};
+
+  // is_same
+  template<class T, class U>
+  struct is_same : std::false_type {};
+
+  template<class T>
+  struct is_same<T, T> : std::true_type {};
+
+#endif
+
+}
+
+
+//////////////////////////////////////////
+// Type traits - containers
+
+// forward declarations
+class TBool;
+class TCh;
+class TUCh;
+class TUSInt;
+
+template <class Base>                                class TNum;
+template <class TVal, class TSizeTy>                 class TVec;
+template <class TKey, class TDat, class THashFunc>   class THash;
+template <class TVal1, class TVal2>                  class TPair;
+
+namespace gtraits {
+  /// cpp type traits, helper to check if type is a container
+  template <typename T> struct is_container : false_type{};
+  // TODO: use a built-in trait to detect shallow classes when compilers will implement most type traits
+  /// helper to check if the type is shallow (does not have any pointers or references and can be copied using memcpy)
+  template <typename T> struct is_shallow : false_type{};
+
+  // helper types and classes
+  namespace utils {
+    template<typename T> struct bool_type : true_type{};
+    template<> struct bool_type<false_type> : false_type{};
+
+    template <class TVal1, class TVal2>
+    struct TPairHelper {
+      private:
+        // is_shallow
+        template <class T1 = TVal1, class T2 = TVal2, typename enable_if<is_shallow<T1>::value && is_shallow<T2>::value,bool>::type = true>
+        static true_type IsShallow();
+        template <class T1 = TVal1, class T2 = TVal2, typename enable_if<!(is_shallow<T1>::value && is_shallow<T2>::value),bool>::type = true>
+        static false_type IsShallow();
+      public:
+        using shallow_type = decltype(IsShallow());
+    };
+  }
+
+  // Specializations: is_shallow
+  // basic types
+  template <> struct is_shallow<TBool> : true_type{};
+  template <> struct is_shallow<TCh> : true_type{};
+  template <> struct is_shallow<TUCh> : true_type{};
+  template <> struct is_shallow<TUSInt> : true_type{};
+
+  // TNum
+  template <class Base> struct is_shallow<TNum<Base>> : true_type{};
+  // TPair
+  template <class TVal1, class TVal2>
+  struct is_shallow<TPair<TVal1,TVal2>> : utils::bool_type<typename utils::TPairHelper<TVal1,TVal2>::shallow_type>{};
+
+  // Specializations: is_container
+  template <class TVal, class TSizeTy>
+  struct is_container<TVec<TVal,TSizeTy>> : true_type{};
+  template<class TKey, class TDat, class THashFunc>
+  struct is_container<THash<TKey,TDat,THashFunc>> : true_type{};
+}
+
+
+//////////////////////////////////////////
+// Memoty Usage
+namespace TMemUtils {
+#ifdef GLib_CPP11
+
+  /// fundamental types (int, float, ...)
+  template <typename T, typename gtraits::enable_if<std::is_fundamental<T>::value,bool>::type = true>
+  uint64 GetMemUsed(const T& Val) {
+    return sizeof(T);
+  }
+
+  /// get memory usage for regular glib classes
+  template <typename T, typename gtraits::enable_if<std::is_class<T>::value && !gtraits::is_container<T>::value,bool>::type = true>
+  uint64 GetMemUsed(const T& Val) {
+    return (uint64) Val.GetMemUsed();
+  }
+
+  /// glib containers
+  template <typename T, typename gtraits::enable_if<gtraits::is_container<T>::value,bool>::type = true>
+  uint64 GetMemUsed(const T& Val) {
+    return (uint64) Val.GetMemUsed(true);   // deep
+  }
+
+  /// references
+  template <typename T, typename gtraits::enable_if<std::is_reference<T>::value,bool>::type = true>
+  uint64 GetMemUsed(T Val) {
+    return (uint64) GetMemUsed<typename std::remove_reference<T>::type>(Val);
+  }
+
+  /// pointers
+  template <typename T, typename gtraits::enable_if<std::is_pointer<T>::value,bool>::type = true>
+  uint64 GetMemUsed(T Val) {
+    if (Val == nullptr) { return sizeof(T); }
+    return sizeof(T) + GetMemUsed(*Val);
+  }
+
+#else
+  template <class T>
+  uint64 GetMemUsed(const T& Val) {
+    return Val.GetMemUsed();
+  }
+  template <>
+  uint64 GetMemUsed(const int& Val) {
+      return sizeof(Val);
+  }
+  template <>
+  uint64 GetMemUsed(const uint& Val) {
+      return sizeof(Val);
+  }
+  template <>
+  uint64 GetMemUsed(const int64& Val) {
+      return sizeof(Val);
+  }
+  template <class T>
+  uint64 GetMemUsed(T* Val) {
+    if (Val == NULL) { return sizeof(T*); }
+    return sizeof(T*) + GetMemUsed(*Val);
+  }
+#endif
+
+  /////////////////////////////////////////////////
+  // Functions which returns the part of the memory footprint of
+  // an object which ignored by the sizeof operator
+
+  /// returns the extra space that the instances members occupy
+  /// which is not taken into account by the sizeof operator
+  template <class TClass>
+  uint64 GetExtraMemberSize(const TClass& Inst) {
+    return TMemUtils::GetMemUsed(Inst) - sizeof(TClass);
+  }
+  /// returns the extra space that the container occupies
+  /// which is not taken into account by the sizeof operator
+  template <class TClass>
+  uint64 GetExtraContainerSizeShallow(const TClass& Inst) {
+    return Inst.GetMemUsed(false) - sizeof(TClass);
+  }
+}
+
+// Depending on the platform and compiler settings choose the faster implementation (of the same hash function)
 #if (defined(GLib_64Bit)) && ! (defined(DEBUG) || defined(_DEBUG))
   typedef TPairHashImpl1 TPairHashImpl;
 #else
   typedef TPairHashImpl2 TPairHashImpl;
 #endif
-
 
 #endif

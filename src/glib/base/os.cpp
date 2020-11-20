@@ -1,20 +1,9 @@
 /**
- * GLib - General C++ Library
- * 
- * Copyright (C) 2014 Jozef Stefan Institute
+ * Copyright (c) 2015, Jozef Stefan Institute, Quintelligence d.o.o. and contributors
+ * All rights reserved.
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- * 
+ * This source code is licensed under the FreeBSD license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #ifdef GLib_WIN
@@ -46,11 +35,11 @@ bool TSysProc::ExeProc(const TStr& ExeFNm, TStr& ParamStr){
   ZeroMemory(&si, sizeof(si));
   si.cb=sizeof(si);
   ZeroMemory(&pi, sizeof(pi));
-
+  char * ParamStrCopy = ParamStr.CloneCStr();
   // Start the child process.
   BOOL Ok=CreateProcess(
    ExeFNm.CStr(),    // module name
-   ParamStr.CStr(),  // patameters
+   ParamStrCopy,  // patameters
    NULL,             // Process handle not inheritable.
    NULL,             // Thread handle not inheritable.
    FALSE,            // Set handle inheritance to FALSE.
@@ -59,6 +48,7 @@ bool TSysProc::ExeProc(const TStr& ExeFNm, TStr& ParamStr){
    NULL,             // Use parent's starting directory.
    &si,              // Pointer to STARTUPINFO structure.
    &pi);             // Pointer to PROCESS_INFORMATION structure.
+  delete[] ParamStrCopy;
   if (Ok){
     // Wait until child process exits.
     WaitForSingleObject( pi.hProcess, INFINITE );
@@ -187,14 +177,6 @@ uint64 TSysTm::GetCurUniMSecs(){
   return UInt64.Val/uint64(10000);
 }
 
-uint64 TSysTm::GetCurLocMSecs(){
-  SYSTEMTIME SysTm; FILETIME FileTm;
-  GetLocalTime(&SysTm);
-  IAssert(SystemTimeToFileTime(&SysTm, &FileTm));
-  TUInt64 UInt64(uint(FileTm.dwHighDateTime), uint(FileTm.dwLowDateTime));
-  return UInt64.Val/uint64(10000);
-}
-
 uint64 TSysTm::GetMSecsFromTm(const TTm& Tm){
   SYSTEMTIME SysTm; FILETIME FileTm;
   SysTm.wYear=WORD(Tm.GetYear());
@@ -222,6 +204,19 @@ TTm TSysTm::GetTmFromMSecs(const uint64& MSecs){
 
 uint TSysTm::GetMSecsFromOsStart(){
   return uint(GetTickCount());
+}
+
+bool TSysTm::IsValidDate(const TTm& Tm) {
+	SYSTEMTIME SysTm; FILETIME FileTm;
+	SysTm.wYear = WORD(Tm.GetYear());
+	SysTm.wMonth = WORD(Tm.GetMonth());
+	SysTm.wDayOfWeek = WORD(Tm.GetDayOfWeek());
+	SysTm.wDay = WORD(Tm.GetDay());
+	SysTm.wHour = WORD(Tm.GetHour());
+	SysTm.wMinute = WORD(Tm.GetMin());
+	SysTm.wSecond = WORD(Tm.GetSec());
+	SysTm.wMilliseconds = WORD(Tm.GetMSec());
+	return (bool) SystemTimeToFileTime(&SysTm, &FileTm);
 }
 
 TTm TSysTm::GetLocTmFromUniTm(const TTm& Tm){
@@ -262,8 +257,8 @@ TTm TSysTm::GetUniTmFromLocTm(const TTm& Tm){
   LocSysTm.wMilliseconds=WORD(Tm.GetMSec());
   // convert system-time
   SYSTEMTIME UniSysTm=LocSysTm;
-  Fail; // BCB5.0 doesn't find TzSpecificLocalTimeToSystemTime
-  //TzSpecificLocalTimeToSystemTime(&TzInf, &LocSysTm, &UniSysTm);
+  //Fail; // BCB5.0 doesn't find TzSpecificLocalTimeToSystemTime
+  TzSpecificLocalTimeToSystemTime(&TzInf, &LocSysTm, &UniSysTm);
   // return system-time
   return TTm(UniSysTm.wYear, UniSysTm.wMonth, UniSysTm.wDay, UniSysTm.wDayOfWeek,
    UniSysTm.wHour, UniSysTm.wMinute, UniSysTm.wSecond, UniSysTm.wMilliseconds);
@@ -566,7 +561,7 @@ int GetModuleFileName(void *hModule, char *Bf, int MxBfL) {
 }
 
 int GetCurrentDirectory(const int MxBfL, char *Bf) {
-  getcwd(Bf, MxBfL);
+  EAssert(getcwd(Bf, MxBfL) != NULL);
   return (int) strlen(Bf);
 }
 
@@ -575,7 +570,7 @@ int CreateDirectory(const char *FNm, void *useless) {
 }
 
 int RemoveDirectory(const char *FNm) {
-  return unlink(FNm)==0;
+  return rmdir(FNm)==0;
 }
 
 #define TICKS_PER_SECOND 10000000
@@ -606,7 +601,7 @@ TTm TSysTm::GetCurUniTm(){
 
   time(&t);
   int ErrCd = gettimeofday(&tv, NULL);
-  EAssert((ErrCd==0)&&(t!=-1));
+  if (ErrCd != 0) { EAssert(t!=-1); }
   gmtime_r(&t, &tms);
 
   return TTm(1900+tms.tm_year, tms.tm_mon + 1, tms.tm_mday, tms.tm_wday,
@@ -620,7 +615,7 @@ TTm TSysTm::GetCurLocTm(){
 
   time(&t);
   int ErrCd = gettimeofday(&tv, NULL);
-  EAssert((ErrCd==0)&&(t!=-1));
+  if (ErrCd != 0) { EAssert(t!=-1); }
   localtime_r(&t, &tms);
 
   return TTm(1900+tms.tm_year, tms.tm_mon + 1, tms.tm_mday, tms.tm_wday,
@@ -628,10 +623,6 @@ TTm TSysTm::GetCurLocTm(){
 }
 
 uint64 TSysTm::GetCurUniMSecs(){
-  return TSysTm::GetMSecsFromTm(GetCurLocTm());
-}
-
-uint64 TSysTm::GetCurLocMSecs(){
   return TSysTm::GetMSecsFromTm(GetCurUniTm());
 }
 
@@ -658,6 +649,11 @@ TTm TSysTm::GetTmFromMSecs(const uint64& TmNum){
 
   return TTm(1900+tms.tm_year, tms.tm_mon + 1, tms.tm_mday, tms.tm_wday,
    tms.tm_hour, tms.tm_min, tms.tm_sec, MSec);
+}
+
+bool TSysTm::IsValidDate(const TTm& Tm) {
+	FailR("Feature not implemented");
+	return true;
 }
 
 TTm TSysTm::GetLocTmFromUniTm(const TTm& Tm) {
@@ -701,7 +697,7 @@ uint TSysTm::GetMSecsFromOsStart(){
 #if defined(_POSIX_MONOTONIC_CLOCK) && (_POSIX_MONOTONIC_CLOCK != -1)
   struct timespec ts;
   int ErrCd=clock_gettime(CLOCK_MONOTONIC, &ts);
-  Assert(ErrCd==0);
+  if (ErrCd != 0) { Assert(ErrCd==0); }
   return (ts.tv_sec*1000) + (ts.tv_nsec/1000000);
 #else
   FILE *f;
@@ -718,13 +714,13 @@ uint64 TSysTm::GetProcessMSecs() {
 #if defined(_POSIX_CPUTIME) && (_POSIX_CPUTIME != -1)
   struct timespec ts;
   int ErrCd=clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
-  Assert(ErrCd==0);
+  if (ErrCd != 0) { Assert(ErrCd==0); }
   return (ts.tv_sec*1000) + (ts.tv_nsec / 1000000);
 #else
   //#warning "CLOCK_PROCESS_CPUTIME not available; using getrusage"
   struct rusage ru;
   int ErrCd = getrusage(RUSAGE_SELF, &ru);
-  EAssert(ErrCd == 0);
+  if (ErrCd != 0) { EAssert(ErrCd == 0); }
   return ((ru.ru_utime.tv_usec + ru.ru_stime.tv_usec) / 1000) +
          ((ru.ru_utime.tv_sec + ru.ru_stime.tv_sec) * 1000);
 #endif
@@ -734,7 +730,7 @@ uint64 TSysTm::GetThreadMSecs() {
 #if defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME != -1)
   struct timespec ts;
   int ErrCd=clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts);
-  Assert(ErrCd==0);
+  if (ErrCd != 0) { Assert(ErrCd==0); }
   return (ts.tv_sec*1000) + (ts.tv_nsec / 1000000);
 #else
   //#warning "CLOCK_THREAD_CPUTIME not available; using GetProcessMSecs()"
@@ -796,7 +792,7 @@ TStr TSysProc::GetExeFNm() {
 }
 
 void TSysProc::SetLowPriority() {
-  nice(19);
+  EAssert(nice(19) != -1);
 }
 
 bool TSysProc::ExeProc(const TStr& ExeFNm, TStr& ParamStr) {
@@ -816,7 +812,7 @@ bool TSysProc::ExeProc(const TStr& ExeFNm, TStr& ParamStr) {
   execvp(argv[0], argv);
 
   //BF: moved role of TSysMsg to TLoop and TSockSys in net.h, hence removed the following inline
-  //TSysMsg::Quit(); 
+  //TSysMsg::Quit();
   kill(getpid(), SIGINT);
   return false;
 }
@@ -830,8 +826,8 @@ TSysMemStat::TSysMemStat() {
     // read process information
     FILE *f = fopen("/proc/self/statm", "r");
     EAssertR(f != NULL, "Error reading /proc/self/statm");
-    EAssertR(7 == fscanf(f, "%ld %ld %ld %ld %ld %ld %ld", &result.size, 
-        &result.resident, &result.share, &result.text, &result.lib, 
+    EAssertR(7 == fscanf(f, "%ld %ld %ld %ld %ld %ld %ld", &result.size,
+        &result.resident, &result.share, &result.text, &result.lib,
         &result.data, &result.dt), "Error parsing /proc/self/statm");
     // close file
     fclose(f);
